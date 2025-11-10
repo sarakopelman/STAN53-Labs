@@ -1,1 +1,1 @@
-Computer Labs fore the course STAN53
+Computer Labs for the course STAN53
