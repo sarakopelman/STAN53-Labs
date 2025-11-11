@@ -1,0 +1,38 @@
+---
+title: "Lab 1"
+author: "Sara Kopelman"
+date: today
+format: html
+---
+
+## Introduction
+
+```{r}
+L <- matrix(c(4,1, 1, 3), nrow=2, byrow=TRUE)
+u <- c(2,-1)
+v <- c(3,1)
+#i
+tL <- t(L)
+detL <-det(L)
+rankL <- qr(L)$rank
+trL <- sum(diag(L))
+
+#ii
+isLInvert <- detL != 0
+Linv <- solve(L)
+ 
+#iii
+Lu <- L%*%u
+
+#iv
+eigenL <- eigen(L)
+eigenValL <- eigenL$values
+eigenVecL <- eigenL$vectors
+
+#v
+uTLu <- t(u) %*% Lu
+
+#vi
+vuTv <- v %*% (t(u) %*% v)
+inProd <- crossprod(u,vuTv) #Check this
+```
