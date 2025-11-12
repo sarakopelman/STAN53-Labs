@@ -5,7 +5,9 @@ date: today
 format: html
 ---
 
-## Introduction
+## Part 0
+
+Don't forget to add AI usage
 
 ```{r}
 L <- matrix(c(4,1, 1, 3), nrow=2, byrow=TRUE)
@@ -35,4 +37,88 @@ uTLu <- t(u) %*% Lu
 #vi
 vuTv <- v %*% (t(u) %*% v)
 inProd <- crossprod(u,vuTv) #Check this
+```
+
+## Part 1
+
+```{r}
+data(iris)
+#i
+print(summary(iris))
+IrisMeans <- colMeans(iris[, 1:4])
+#ii
+pairs(iris[, 1:4])
+#iii
+R <- cor(iris[, 1:4])
+print(R)
+#iv
+par(mfrow=c(2, 2))
+for(i in 1:4) {
+  hist(iris[, i], main=colnames(iris)[i], xlab=colnames(iris)[i])
+}
+```
+
+## Part 2
+
+```{r}
+WL <- read.table("WeightLength.txt",header = TRUE, sep = "\t")
+#i
+meanWL <- colMeans(WL)
+S <- var(WL)
+#ii
+hist(WL[,1])
+qqnorm(WL[,1])
+qqline(WL[,1], col = "blue") 
+
+hist(WL[,2])
+qqnorm(WL[,2])
+qqline(WL[,2], col = "blue") 
+
+#iii
+library('ellipse')
+plot(ellipse(S,centre = meanWL, level = c(0.95,0.75), npoints=1000),pch=".",col="red" )
+points(WL,col="blue")
+
+#iv
+n <- nrow(WL)
+p <- ncol(WL)
+(n-1)*p/(n-p)*qf(0.95,p,n)
+qchisq(0.95,p)
+
+scoring=function(Data){
+  n=dim(Data)[1]
+  scoring=vector("numeric",n)
+  s=var(Data)
+  si=solve(s)
+  m=colMeans(Data)
+  for( i in 1:n){
+    xm=t(as.matrix(Data[i,]-m))
+    scoring[i]=t(xm)%*%si%*%xm
+  }
+  scoring
+}
+Score <- scoring(WL); head(Score)
+
+FinalScore <- rep(1,n)
+
+te  <- (n-1)*p/(n-p)*qf(0.95,p,n)
+te2 <- (n-1)*p/(n-p)*qf(0.75,p,n)
+
+FinalScore[Score>te]=0
+FinalScore[Score<=te2]=2
+
+points(WL[FinalScore==2,],col="green")
+points(WL[FinalScore==1,],col="blue")
+points(WL[FinalScore==0,],col="yellow")
+mean(FinalScore==0)
+mean(FinalScore==1)
+mean(FinalScore==2)
+
+#v
+E <- eigen(S)
+u <- E$vectors
+NewData <- as.matrix(WL) %*% u
+
+#vi
+plot(NewData) #check this
 ```
