@@ -122,3 +122,71 @@ NewData <- as.matrix(WL) %*% u
 #vi
 plot(NewData) #check this
 ```
+
+```{r}
+set.seed(6)
+#i
+n <- c(20,50,200,2000)
+mu = c(0,0)
+sigma = matrix(c(1,0.5, 0.5, 1), nrow=2, byrow=TRUE)
+
+normSim <-function(n,mu,sigma){
+  R <- chol(sigma)
+  Z <- matrix(rnorm(n * length(mu)), nrow = n)
+  X <- Z %*% R + matrix(mu, nrow = n, ncol = length(mu), byrow = TRUE)
+  return(X)
+}
+
+#ii
+
+Sims <- lapply(n, function(n) normSim(n, mu, sigma))
+names(Sims) <- paste0("n_", n)
+
+#iii
+
+Means <- lapply(Sims,colMeans)
+Covs <- lapply(Sims,cov)
+SE_Mean <- lapply(Means, function(m) sum((m-mu)^2))
+SE_Cov <- lapply(Covs, function(c) sum((c - sigma)^2))
+
+#iv/v
+reps <- 500
+SE_mean_reps <- matrix(NA,nrow=reps,ncol = length(n))
+SE_cov_reps <- matrix(NA,nrow=reps,ncol = length(n))
+Mean_vectors <- vector("list", length(n))
+names(Mean_vectors) <- paste0("n_", n)
+for (j in 1:length(n)) {
+  Mean_vectors[[j]] <- matrix(NA, nrow = reps, ncol = length(mu))
+}
+
+for (i in 1:reps) {
+  sims <-lapply(n, function(n) normSim(n, mu, sigma))
+  means <-lapply(sims,colMeans)
+  covs <- lapply(sims,cov)
+  SE_mean <- sapply(means, function(m) sum((m - mu)^2))
+  SE_cov  <- sapply(covs, function(c) sum((c - sigma)^2))
+  
+  SE_mean_reps[i, ] <- SE_mean
+  SE_cov_reps[i, ] <- SE_cov
+  
+  for (j in 1:length(n)) {
+    Mean_vectors[[j]][i, ] <- means[[j]]
+  }
+}
+
+MSE_mean <- colMeans(SE_mean_reps)
+MSE_cov <- colMeans(SE_cov_reps)
+#vi
+colors <- c("red","blue","green","orange")
+plot(Mean_vectors[[1]], xlim = range(sapply(Mean_vectors, range)),
+     ylim = range(sapply(Mean_vectors, range)), col = colors[1],
+     xlab = "Mean X1", ylab = "Mean X2", pch = 16)
+for (j in 2:length(n)) {
+  points(Mean_vectors[[j]], col = colors[j], pch = 16)
+}
+legend("topright", legend = paste0("n=", n), col = colors, pch = 16)
+
+#vii
+Cov_Mean_empirical <- lapply(Mean_vectors, cov)
+Cov_Mean_theoretical <- lapply(n, function(nn) sigma / nn)
+```
