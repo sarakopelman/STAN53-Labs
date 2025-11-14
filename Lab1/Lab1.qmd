@@ -1,15 +1,14 @@
 ---
-title: "Lab 1"
+title: "Computer Lab 1: High dimensional data analysis"
 author: "Sara Kopelman"
 date: today
-format: html
+format: pdf
 ---
 
 ## Part 0
 
-Don't forget to add AI usage
-
 ```{r}
+#| echo: false
 L <- matrix(c(4,1, 1, 3), nrow=2, byrow=TRUE)
 u <- c(2,-1)
 v <- c(3,1)
@@ -36,8 +35,89 @@ uTLu <- t(u) %*% Lu
 
 #vi
 vuTv <- v %*% (t(u) %*% v)
-inProd <- crossprod(u,vuTv) #Check this
+inProd <- crossprod(u,vuTv)
 ```
+
+We have the matrix $\mathbf L$ and the vectors $\mathbf u$ and $\mathbf v$:
+
+$$
+\mathbf L =
+\begin{pmatrix}
+4 & 1 \\
+1 & 3
+\end{pmatrix},
+\qquad
+\mathbf u =
+\begin{pmatrix}
+2 \\
+-1
+\end{pmatrix},
+\qquad
+\mathbf v =
+\begin{pmatrix}
+3 \\
+1
+\end{pmatrix}.
+$$
+
+### i)
+
+We are tasked with computing the transpose, determinant, rank, and trace of $L$. $L$ is symmetric so the transpose of $L$, $L^T$ is simply $L$. The determinant is $|L| = `r detL`$, the rank is `r rankL`, and the trace is `r trL`.
+
+### ii)
+
+The determinant is not equal to 0 and $\mathbf L$ is thus invertible.
+
+### iii)
+
+We are tasked with performing the matrix multiplication of $\mathbf L$ and $\mathbf u$:
+
+$$
+\mathbf{Lu}=
+\begin{pmatrix}
+4 & 1 \\
+1 & 3
+\end{pmatrix}\begin{pmatrix}
+2 \\
+-1
+\end{pmatrix}=\begin{pmatrix}
+7\\
+-1
+\end{pmatrix}
+$$
+
+### iv)
+
+The eigenvalues and eigenvectors of $\mathbf L$ are:
+
+Eigenvalues: $$
+\lambda_1 = 4.618034, \qquad \lambda_2 = 2.381966
+$$
+
+Eigenvectors (columns correspond to the respective eigenvalues): $$
+V =
+\begin{pmatrix}
+-0.8506508 & 0.5257311 \\
+-0.5257311 & -0.8506508
+\end{pmatrix}
+$$
+
+### v)
+
+The quadratic form of $\mathbf u$ with respect to $L$ is:
+
+$$
+\mathbf u^\top \mathbf L \mathbf u = 15
+$$
+
+### vi)
+
+The inner product of $\mathbf{u}$ and $\mathbf{v}$ ($\mathbf{u}^\top \mathbf{v}$) is
+
+$$
+\mathbf{u}^\top (\mathbf{v} \, (\mathbf{u}^\top \mathbf{v})) =
+\mathbf{u}^\top \mathbf{v} \, (\mathbf{u}^\top \mathbf{v}) = 25
+$$
 
 ## Part 1
 
@@ -190,3 +270,7 @@ legend("topright", legend = paste0("n=", n), col = colors, pch = 16)
 Cov_Mean_empirical <- lapply(Mean_vectors, cov)
 Cov_Mean_theoretical <- lapply(n, function(nn) sigma / nn)
 ```
+
+## Use of AI
+
+Write here
