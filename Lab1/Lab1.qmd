@@ -121,16 +121,47 @@ $$
 
 ## Part 1
 
+In this part we will use the `iris` dataset to see aspects of multivariate analysis.
+
+### i)
+
 ```{r}
+#| echo: true
+library(knitr)
 data(iris)
 #i
-print(summary(iris))
+iris_summary <- data.frame(
+Variable = colnames(iris[,1:4]),
+Mean = colMeans(iris[,1:4]),
+SD = apply(iris[,1:4], 2, sd),
+Min = apply(iris[,1:4], 2, min),
+Max = apply(iris[,1:4], 2, max),
+Median = apply(iris[,1:4], 2, median)
+)
+kable(iris_summary, caption = "Descriptive statistics of the Iris dataset")
+```
+
+```{r}
 IrisMeans <- colMeans(iris[, 1:4])
+```
+
+```{}
+```
+
+```{r}
 #ii
 pairs(iris[, 1:4])
+
+```
+
+```{r}
 #iii
 R <- cor(iris[, 1:4])
 print(R)
+
+```
+
+```{r}
 #iv
 par(mfrow=c(2, 2))
 for(i in 1:4) {
