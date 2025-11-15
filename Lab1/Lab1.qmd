@@ -10,7 +10,7 @@ format:
     booktabs: true
 ---
 
-## Part 0
+## Part 0: Matrix Algebra and Random Vectors
 
 ```{r}
 #| echo: false
@@ -39,8 +39,7 @@ eigenVecL <- eigenL$vectors
 uTLu <- t(u) %*% Lu
 
 #vi
-vuTv <- v %*% (t(u) %*% v)
-inProd <- crossprod(u,vuTv)
+inProd <- crossprod(u,v)
 ```
 
 We have the matrix $\mathbf L$ and the vectors $\mathbf u$ and $\mathbf v$:
@@ -71,7 +70,7 @@ We are tasked with computing the transpose, determinant, rank, and trace of $L$.
 
 ### ii)
 
-The determinant is not equal to 0 and $\mathbf L$ is thus invertible. The inverse $\mathbf L^{-1}$
+The determinant is not equal to 0 and $\mathbf L$ is thus invertible. The inverse $\mathbf L^{-1}$ is
 
 $$
 \mathbf L^{-1} =
@@ -125,14 +124,9 @@ $$
 
 ### vi)
 
-The inner product of $\mathbf{u}$ and $\mathbf{v}$ ($\mathbf{u}^\top \mathbf{v}$) is
+The inner product of $\mathbf{u}$ and $\mathbf{v}$, ($\mathbf{u}^\top \mathbf{v}$) is `r inProd`.
 
-$$
-\mathbf{u}^\top (\mathbf{v} \, (\mathbf{u}^\top \mathbf{v})) =
-\mathbf{u}^\top \mathbf{v} \, (\mathbf{u}^\top \mathbf{v}) = 25
-$$
-
-## Part 1
+## Part 1: Iris Dataset
 
 In this part we will use the `iris` dataset to see aspects of multivariate analysis.
 
@@ -179,7 +173,7 @@ IrisMeans <- colMeans(iris[, 1:4])
 
 The estimated mean vector is thus:
 
-$$ \hat{\mu} = \begin{pmatrix} 5.843333 \\ 3.057333 \\ 3.758000 \\ 1.199333 \end{pmatrix} $$
+$$ \bar{\mathbf x} = \begin{pmatrix} 5.843333 \\ 3.057333 \\ 3.758000 \\ 1.199333 \end{pmatrix} $$
 
 ### ii)
 
@@ -220,28 +214,90 @@ for(i in 1:4) {
 }
 ```
 
-## Part 2
+## Part 2: Weight and Length of Newborn Children
+
+In this section we will analyze data consisting of the height (in cm) and weight (in grams) of 736 newborn children.
+
+### i)
+
+The estimated mean-vector $\bar{\mathbf x}$, containing the average *weight* and *length* of the infants in the dataset is:
+
+$$ \bar{\mathbf x} = \begin{pmatrix} 3233.545 \\ 49.238 \end{pmatrix} $$
+
+The estimated covariance matrix $\mathbf S$ is illustrated in @tbl-wl-cov, below. As expected there is positive covariance between *length* and *weight*.
 
 ```{r}
+#| echo: false
+#| tbl-cap: "Estimated covariance matrix of Weight and Length"
+#| label: tbl-wl-cov
 WL <- read.table("WeightLength.txt",header = TRUE, sep = "\t")
 #i
 meanWL <- colMeans(WL)
 S <- var(WL)
-#ii
-hist(WL[,1])
-qqnorm(WL[,1])
-qqline(WL[,1], col = "blue") 
+kable(as.data.frame(S), digits = 3)
+```
 
-hist(WL[,2])
-qqnorm(WL[,2])
-qqline(WL[,2], col = "blue") 
+@fig-wl_dist, on the following page, illustrates Histograms and Q-Q plots of the two variables in the datasets. Both plot types indicate that the marginal distributions adhere well to the normal distribution.
 
-#iii
-library('ellipse')
-plot(ellipse(S,centre = meanWL, level = c(0.95,0.75), npoints=1000),pch=".",col="red" )
-points(WL,col="blue")
+```{r}
+#| echo: false
+#| fig-cap: "Histograms and Q-Q plots of Weight and Length"
+#| label: fig-wl_dist
+#| fig-width: 6
+#| fig-height: 6
+#| fig-pos: "H"
 
-#iv
+par(mfrow = c(2,2))  # 2 rows, 2 columns
+
+# Histogram of Weight
+hist(WL[,1],
+     main = "Histogram of Weight",
+     xlab = "Weight",
+     col = "skyblue",
+     border = "white")
+
+# Q-Q plot of Weight
+qqnorm(WL[,1], main = "Q-Q Plot of Weight")
+qqline(WL[,1], col = "blue", lwd = 2)
+
+# Histogram of Length
+hist(WL[,2],
+     main = "Histogram of Length",
+     xlab = "Length",
+     col = "lightgreen",
+     border = "white")
+
+# Q-Q plot of Length
+qqnorm(WL[,2], main = "Q-Q Plot of Length")
+qqline(WL[,2], col = "blue", lwd = 2)
+
+par(mfrow = c(1,1))  # reset layout
+```
+
+\newpage
+
+@fig-wl-scatter, below, once again displays a strong positive correlation between the *weight* and *height*.
+
+```{r}
+#| echo: false
+#| fig-cap: "Scatter plot of Weight vs Length"
+#| label: fig-wl-scatter
+#| fig-pos: "H"
+
+plot(WL[,1], WL[,2],
+     xlab = "Weight",
+     ylab = "Length",
+     main = "Weight vs Length",
+     pch = 19, col = "darkgreen")
+```
+
+### iii-iv)
+
+```{r}
+#| echo: false   # hides the R code
+#| results: 'hide'  # hides printed output
+#| message: false   # hides messages
+#| warning: false   # hides warnings
 n <- nrow(WL)
 p <- ncol(WL)
 (n-1)*p/(n-p)*qf(0.95,p,n)
@@ -265,52 +321,188 @@ FinalScore <- rep(1,n)
 
 te  <- (n-1)*p/(n-p)*qf(0.95,p,n)
 te2 <- (n-1)*p/(n-p)*qf(0.75,p,n)
+```
 
+Now we want to consider the following score system:
+
+-   **Score 0:** If the weight and length fall outside 95% of the typical values for the population.
+-   **Score 1:** If the measurements fall in the category between 75% and 95% of the typical values.
+-   **Score 2:** In all other cases (i.e., inside the 75% region)
+
+We want to draw the ellipsoids that serve as the classification regions for the scores, as well as classify the children in the dataset. This is illustrated in @fig-wl-ellipse, on the following page. In red we have the ellipsoid corresponding to the estimated multivariate distribution of the data, centered at the mean vector. The axes point along the eigenvectors of the covariance matrix, and their lengths are proportional to the square roots of the eigenvalues. The points are then classified by first computing their squared Mahalanobis distance for each point $\mathbf x_i$
+
+$$
+d_i^2=(\mathbf x_i-\bar{\mathbf x})^\top\mathbf S^{-1}(\mathbf x_i-\bar{\mathbf x})
+$$
+
+Points with $d_i^2$ larger than the 95% threshold derived from the F-distribution with $p$ and $n-p$ degrees of freedom, `r round(te,2)`, are classified as Score 0. Points with $d_i^2$ between the 75% and 95% thresholds, `r round(te2,2)` – `r round(te,2)`, are assigned Score 1, and points with $d_i^2$ smaller than the 75% threshold, `r round(te2,2)`, are assigned Score 2.
+
+```{r}
+#| echo: false
+#| fig-cap: "Scatter plot of weight vs. length measurements with 75% (inner) and 95% (outer) confidence ellipses. Points are colored according to a three-level scoring system"
+#| label: fig-wl-ellipse
+#| fig-pos: "H"
+#| fig-width: 7
+#| fig-height: 7
+
+
+suppressWarnings(suppressPackageStartupMessages(library(ellipse)))
+
+# Draw both ellipses together
+plot(ellipse(S, centre = meanWL, level = c(0.95,0.75), npoints=1000), 
+     pch=".", col="red", xlab="Weight", ylab="Length",
+     main="Weight vs. Length with 75% and 95% Ellipsoids")
+
+# Assign FinalScore (needed for coloring points)
 FinalScore[Score>te]=0
 FinalScore[Score<=te2]=2
 
-points(WL[FinalScore==2,],col="green")
-points(WL[FinalScore==1,],col="blue")
-points(WL[FinalScore==0,],col="yellow")
-mean(FinalScore==0)
-mean(FinalScore==1)
-mean(FinalScore==2)
+# Add points colored by score
+points(WL[FinalScore==2,], col="green")  # Score 2
+points(WL[FinalScore==1,], col="blue")   # Score 1
+points(WL[FinalScore==0,], col="orange") # Score 0
 
+# Add legend
+legend("bottomright",
+       legend=c("Score 2 (inside 75%)","Score 1 (75%-95%)","Score 0 (outside 95%)","Ellipsoids"),
+       col=c("green","blue","orange","red"),
+       pch=c(19,19,19,NA),
+       lty=c(NA,NA,NA,1),
+       lwd=c(NA,NA,NA,2),
+       pt.cex=1.2,
+       bty="n")
+
+# Compute means
+m0 <- mean(FinalScore==0)
+m1 <- mean(FinalScore==1)
+m2 <- mean(FinalScore==2)
+
+
+```
+
+In total, Score 0 includes `r sum(FinalScore==0)` children (`r round(m0*100, 1)`%), Score 1 includes `r sum(FinalScore==1)` children (`r round(m1*100, 1)`%), and Score 2 includes `r sum(FinalScore==2)` children (`r round(m2*100, 1)`%), which aligns with the expected proportions given the 75% and 95% thresholds.
+
+### v)
+
+```{r}
+#| echo: false
 #v
 E <- eigen(S)
 u <- E$vectors
-NewData <- as.matrix(WL) %*% u
+lambda <- E$values
 
-#vi
-plot(NewData) #check this
 ```
 
-```{r}
-set.seed(6)
-#i
-n <- c(20,50,200,2000)
-mu = c(0,0)
-sigma = matrix(c(1,0.5, 0.5, 1), nrow=2, byrow=TRUE)
+We now consider the spectral decomposition of the covariance matrix $\mathbf S$, which expresses $\mathbf S$ in terms of its eigenvectors and eigenvalues. For a real symmetric matrix, this decomposition is\
+$$
+\mathbf S=\mathbf E\Lambda \mathbf E^\top
+$$
 
-normSim <-function(n,mu,sigma){
+where $\mathbf E$ us an orthogonal matrix containing the eigenvectors as columns and $\Lambda$ is a diagonal matrix with the corresponding eigenvalues. Thus:\
+$$
+\mathbf{E} =
+\begin{bmatrix}
+-0.99999 & 0.00416 \\
+-0.00416 & -0.99999
+\end{bmatrix}, 
+\quad
+\Lambda =
+\begin{bmatrix}
+220280.5 & 0 \\
+0 & 0.64005
+\end{bmatrix}, 
+\quad
+\mathbf{S} = \mathbf{E} \Lambda \mathbf{E}^\top
+$$
+
+We now transform the data $\mathbf X$ according to $\mathbf Y=\mathbf E^\top \mathbf X$, where $\mathbf Y$ is an $p\times n$ matrix, with each column corresponding to an observation and each row corresponding to a new axis defined by the eigenvectors of the covariance matrix. The variability along each new axis is equal to the corresponding eigenvalue of $\mathbf S$, meaning that the first row of $\mathbf Y$ has variance equal to the largest eigenvalue, the second row has variance equal to the smaller eigenvalue. The scatter plot in @fig-wl-transf shows the transformed data. We can see that the transformation has decorrelated the data as no more rotation is visible.
+
+```{r}
+#| echo: false
+#| fig-cap: "Scatter plot of the transformed weight and length measurements after rotation by the eigenvectors of the covariance matrix"
+#| label: fig-wl-transf
+#| fig-pos: "H"
+
+NewData = as.matrix(WL) %*% u #Should result in the same because we have observations on rows, not columns
+
+S_new <- cov(NewData) #If we compare this with Lambda we see that the variances is indeed the eigenvalues
+
+#vi
+plot(NewData[,1], NewData[,2], xlab="Eigenvector 1", ylab="Eigenvector 2",
+     main="Data transformed to the eigenvector basis of S")
+```
+
+Note, however, that in difference to regular PCA we have not standardized the data before performing the transformation. This means that the units of the variables influence the magnitude of the eigenvalues and the orientation of the axes, and that variables with larger scales will contribute more to the total variability.
+
+## Part 3: Simulation Study
+
+We will now simulate data from a bivariate normal distribution to study the properties of the sample mean vector and sample covariance matrix. We consider the distribution $\mathbf X_i\sim N_2(mu,\Sigma)$ with:
+
+$$
+\mu=\begin{pmatrix}
+0\\
+0
+\end{pmatrix},\qquad \Sigma=\begin{pmatrix}
+1&0.5\\
+0.5&1
+\end{pmatrix}
+$$
+
+and the sample sizes $n=\{20, 50, 200, 2000\}$. @tbl-sim-est, on the following page, displays the estimated mean vector, covariance matrix, and their standard errors for each sample size. We see that the parameter vectors/matrices approach their true values as the sample size increases, which is also reflected in the decreasing standard errors.
+
+```{r}
+#| echo: false
+#| tbl-cap: "Estimated means, covariance matrices, and corresponding standard errors for each sample size from simulated bivariate normal data."
+#| label: tbl-sim-est
+set.seed(6)
+# Sample sizes and parameters
+n <- c(20,50,200,2000)
+mu <- c(0,0)
+sigma <- matrix(c(1,0.5,0.5,1), nrow=2, byrow=TRUE)
+
+# Function to simulate bivariate normal
+normSim <- function(n, mu, sigma) {
   R <- chol(sigma)
-  Z <- matrix(rnorm(n * length(mu)), nrow = n)
-  X <- Z %*% R + matrix(mu, nrow = n, ncol = length(mu), byrow = TRUE)
+  Z <- matrix(rnorm(n * length(mu)), nrow=n)
+  X <- Z %*% R + matrix(mu, nrow=n, ncol=length(mu), byrow=TRUE)
   return(X)
 }
 
-#ii
-
+# Simulations
 Sims <- lapply(n, function(n) normSim(n, mu, sigma))
 names(Sims) <- paste0("n_", n)
 
-#iii
+# Means, covariances, and SEs
+Means <- lapply(Sims, colMeans)
+Covs  <- lapply(Sims, cov)
+SE_Mean <- sapply(Means, function(m) sum((m - mu)^2))
+SE_Cov  <- sapply(Covs, function(c) sum((c - sigma)^2))
 
-Means <- lapply(Sims,colMeans)
-Covs <- lapply(Sims,cov)
-SE_Mean <- lapply(Means, function(m) sum((m-mu)^2))
-SE_Cov <- lapply(Covs, function(c) sum((c - sigma)^2))
+# Combine into one table
+table_all <- data.frame(
+  n = n,
+  Mean_X1 = sapply(Means, `[`, 1),
+  Mean_X2 = sapply(Means, `[`, 2),
+  SE_Mean = SE_Mean,
+  Cov_11 = sapply(Covs, `[`, 1,1),
+  Cov_12 = sapply(Covs, `[`, 1,2),
+  Cov_21 = sapply(Covs, `[`, 2,1),
+  Cov_22 = sapply(Covs, `[`, 2,2),
+  SE_Cov  = SE_Cov
+)
 
+# Print nicely
+kable(round(table_all,3))
+
+
+```
+
+Instead of simulating 1 sample of size $n$, we will next perform 500 simulations for each size $n$ and estimate the MSE. The results are illustrated in @tbl-500-mean and @tbl-500-cov, below.
+
+```{r}
+#| echo: false
+#| tbl-cap: "Average Estimated Means and SE Across 500 Repetitions"
+#| label: tbl-500-mean
 #iv/v
 reps <- 500
 SE_mean_reps <- matrix(NA,nrow=reps,ncol = length(n))
@@ -338,21 +530,92 @@ for (i in 1:reps) {
 
 MSE_mean <- colMeans(SE_mean_reps)
 MSE_cov <- colMeans(SE_cov_reps)
-#vi
+
+rnd <- function(x) round(x, 3)
+
+Mean_table <- data.frame(
+  n = n,
+  X1 = sapply(Mean_vectors, function(m) mean(m[,1])),
+  X2 = sapply(Mean_vectors, function(m) mean(m[,2])),
+  MSE_Mean = rnd(MSE_mean)
+)
+kable(Mean_table)
+
+
+```
+
+```{r}
+#| echo: false
+#| tbl-cap: "Average SE of Covariance Matrices Across 500 Repetitions"
+#| label: tbl-500-cov
+Cov_SE_table <- data.frame(
+  n = n,
+  MSE_Cov = rnd(MSE_cov)
+)
+kable(Cov_SE_table)
+```
+
+We observe that the average estimate is closer to the true value (and the bias thus smaller), for the larger sample size. In the same way the MSE also decreases with sample size. @fig-sim-superimp, on the following page, plots the estimated mean vector from each of the 500 samples for all sizes $n$. If we consider each size $n$ separately we see that each form an ellipsoid with the same rotation and shape, but whose axes decrease in magnitude with $n$.
+
+```{r}
+#| echo: false
+#| fig-cap: "Simulated mean vectors for different sample sizes"
+#| label: fig-sim-superimp
+#| fig-pos: "H"
+#| fig-width: 7
+#| fig-height: 7
+
 colors <- c("red","blue","green","orange")
-plot(Mean_vectors[[1]], xlim = range(sapply(Mean_vectors, range)),
-     ylim = range(sapply(Mean_vectors, range)), col = colors[1],
+
+# Compute overall x and y limits with some padding
+xlim <- range(sapply(Mean_vectors, function(m) range(m[,1])))
+ylim <- range(sapply(Mean_vectors, function(m) range(m[,2])))
+xpad <- 0.05 * diff(xlim)
+ypad <- 0.05 * diff(ylim)
+xlim <- xlim + c(-xpad, xpad)
+ylim <- ylim + c(-ypad, ypad)
+
+plot(Mean_vectors[[1]], 
+     xlim = xlim,
+     ylim = ylim, 
+     col = colors[1],
      xlab = "Mean X1", ylab = "Mean X2", pch = 16)
+
 for (j in 2:length(n)) {
   points(Mean_vectors[[j]], col = colors[j], pch = 16)
 }
-legend("topright", legend = paste0("n=", n), col = colors, pch = 16)
 
-#vii
+legend("bottomright", legend = paste0("n=", n), col = colors, pch = 16, inset = 0.02)
+
+```
+
+We also computed the covariance matrix for $\bar\mathbf x$, for each size $n$ across the 500 samples and compared them against the empirical covariance matrix $\frac{1}{n}\Sigma$. The difference between the estimated matrix and the empirical is illustrated in @tbl-500-cov, on the following page. We observe that the difference once again approaches 0 as the sample size increases.
+
+```{r}
+#| echo: false
+#| tbl-cap: "Difference between Empirical and Theoretical Covariance of Means for Different Sample Sizes"
+#| label: tbl-500-covemp
 Cov_Mean_empirical <- lapply(Mean_vectors, cov)
 Cov_Mean_theoretical <- lapply(n, function(nn) sigma / nn)
+
+# Compute differences and store in a table
+Cov_diff_table <- data.frame(
+  SampleSize = n,
+  C11 = sapply(seq_along(n), function(i) Cov_Mean_empirical[[i]][1,1] - Cov_Mean_theoretical[[i]][1,1]),
+  C12 = sapply(seq_along(n), function(i) Cov_Mean_empirical[[i]][1,2] - Cov_Mean_theoretical[[i]][1,2]),
+  C21 = sapply(seq_along(n), function(i) Cov_Mean_empirical[[i]][2,1] - Cov_Mean_theoretical[[i]][2,1]),
+  C22 = sapply(seq_along(n), function(i) Cov_Mean_empirical[[i]][2,2] - Cov_Mean_theoretical[[i]][2,2])
+)
+
+# Round values
+Cov_diff_table <- round(Cov_diff_table, 5)
+
+# Print table
+kable(Cov_diff_table)
 ```
+
+From the simulation result wee clearly see that the sample size affects the bias, variance and MSE of the estimators. While the expected bias is of course 0 no matter the sample size. The estimator of the mean vector, $\bar{\mathbf x}$ is $N_2(\mu,\frac{1}{n}\Sigma)$ which means that in practice we will observe a certain amount of bias, that will be on average smaller as the variance decreases with $n$. The average of 500 samples we computed for each sample size is of course normally distributed as well given that it is a linear combination 500 observations of the estimator above. It is therefore natural that although all of the estimators are unbiased to begin with (and MSE should thus be 0 for all sample sizes) we still observe nonzero MSE in our finite simulations. This reflects the sampling variability and illustrates how larger sample sizes lead to more stable and precise estimates.
 
 ## Use of AI
 
-Write here
+AI (ChatGPT) has been utilized in this report primarily to assist with coding, including constructing and formatting plots, generating LaTeX code, and suggesting functions. It was also used for light spelling and grammar checks.
