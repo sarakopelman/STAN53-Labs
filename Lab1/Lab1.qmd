@@ -1,8 +1,13 @@
 ---
-title: "Computer Lab 1: High dimensional data analysis"
+title: "Computer Lab 1: High Dimensional Data Analysis"
 author: "Sara Kopelman"
 date: today
-format: pdf
+date-format: long
+format:
+  pdf:
+    toc: false
+    number-sections: false
+    booktabs: true
 ---
 
 ## Part 0
@@ -66,7 +71,15 @@ We are tasked with computing the transpose, determinant, rank, and trace of $L$.
 
 ### ii)
 
-The determinant is not equal to 0 and $\mathbf L$ is thus invertible.
+The determinant is not equal to 0 and $\mathbf L$ is thus invertible. The inverse $\mathbf L^{-1}$
+
+$$
+\mathbf L^{-1} =
+\begin{pmatrix}
+0.27272727 & -0.09090909 \\
+-0.09090909 & 0.36363636
+\end{pmatrix}
+$$
 
 ### iii)
 
@@ -104,7 +117,7 @@ $$
 
 ### v)
 
-The quadratic form of $\mathbf u$ with respect to $L$ is:
+The quadratic form of $\mathbf u$ with respect to $\mathbf L$ is:
 
 $$
 \mathbf u^\top \mathbf L \mathbf u = 15
@@ -125,44 +138,82 @@ In this part we will use the `iris` dataset to see aspects of multivariate analy
 
 ### i)
 
+@tbl-iris, below, displays descriptive statistics for the numerical variables in the dataset, while @tbl-iris_species shows the frequency of the categorical variable, *species*.
+
 ```{r}
-#| echo: true
+#| echo: false
+#| label: tbl-iris
+#| tbl-cap: Descriptive statistics of the Iris dataset
 library(knitr)
 data(iris)
-#i
+
 iris_summary <- data.frame(
-Variable = colnames(iris[,1:4]),
-Mean = colMeans(iris[,1:4]),
-SD = apply(iris[,1:4], 2, sd),
-Min = apply(iris[,1:4], 2, min),
-Max = apply(iris[,1:4], 2, max),
-Median = apply(iris[,1:4], 2, median)
+  Variable = colnames(iris[,1:4]),
+  Mean = colMeans(iris[,1:4]),
+  SD = apply(iris[,1:4], 2, sd),
+  Min = apply(iris[,1:4], 2, min),
+  Max = apply(iris[,1:4], 2, max),
+  Median = apply(iris[,1:4], 2, median)
 )
-kable(iris_summary, caption = "Descriptive statistics of the Iris dataset")
+
+kable(iris_summary)
 ```
 
 ```{r}
+#| echo: false
+#| label: tbl-iris_species
+#| tbl-cap: Frequency table of Species in the Iris dataset
+library(knitr)
+data(iris)
+
+species_freq <- as.data.frame(table(iris$Species))
+colnames(species_freq) <- c("Species", "Frequency")
+
+kable(species_freq)
+```
+
+```{r}
+#| echo: false
 IrisMeans <- colMeans(iris[, 1:4])
 ```
 
-```{}
-```
+The estimated mean vector is thus:
+
+$$ \hat{\mu} = \begin{pmatrix} 5.843333 \\ 3.057333 \\ 3.758000 \\ 1.199333 \end{pmatrix} $$
+
+### ii)
+
+@fig-iris_pairs below, displays a scatter plot matrix for the numerical variables. We see clear indications of a strong positive correlations between several of the variable pairs.
 
 ```{r}
-#ii
+#| echo: false
+#| fig-cap: "Scatterplot matrix of the numeric variables in the Iris dataset"
+#| label: fig-iris_pairs
+#| fig-pos: "H"
+
 pairs(iris[, 1:4])
-
 ```
 
+The correlation matrix, illustrated in @tbl-iris-cor, below, indeed confirms that this is the case, with strong positive correlations between *Petal Length*, *Petal With* and *Sepal Length*
+
 ```{r}
-#iii
+#| echo: false
+#| label: tbl-iris-cor
+#| tbl-cap: Correlation matrix of the numeric variables in the Iris dataset
 R <- cor(iris[, 1:4])
-print(R)
+kable(R)
 
 ```
 
+### iv)
+
+@fig-iris_hist, below, plots histograms of the numeric variables in the dataset. We see that the distribution for *Sepal Width* looks the most symmetric, centered around its mean of approximately 3. *Sepal Length* also appears moderately symmetric but has a much less "normal-looking" distribution, as it is noticeably flatter than a typical bell-shaped curve. The *Petal Length* and *Petal Width* distributions, in contrast, appear almost bimodal, with there being one group with similarly small petals, as well as one group with a variety of larger petal sizes.
+
 ```{r}
-#iv
+#| echo: false
+#| fig-cap: "Histograms of the numeric variables in the Iris dataset"
+#| label: fig-iris_hist
+#| fig-pos: "H"
 par(mfrow=c(2, 2))
 for(i in 1:4) {
   hist(iris[, i], main=colnames(iris)[i], xlab=colnames(iris)[i])
