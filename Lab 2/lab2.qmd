@@ -1,0 +1,167 @@
+---
+title: "Computer Lab 2: High Dimensional Data Analysis"
+author: "Sara Kopelman"
+date: today
+date-format: long
+format:
+  pdf:
+    toc: false
+    number-sections: false
+    booktabs: true
+---
+
+# Printing Banknotes
+
+## 1)
+
+```{r}
+df <- read.csv("banknotes.csv")
+BG <- df[,1:6]
+
+# Basic summaries
+head(BG)
+colMeans(BG)
+var(BG)
+cor(BG)
+plot(BG)
+
+# QQ plots with names + qqline
+par(mfcol = c(2, 3))
+
+for (i in 1:6) {
+  qqnorm(BG[, i],
+         main = paste("QQ Plot of", colnames(BG)[i]),
+         pch = 19, cex = 0.6)
+  qqline(BG[, i], col = "red", lwd = 2)
+}
+
+```
+
+## 2)
+
+```{r}
+n <- dim ( BG ) [1]
+p <- dim ( BG ) [2]
+S <- cov ( BG )
+IS <- solve ( S )
+barX <- colMeans ( BG )
+```
+
+## 3)
+
+```{r}
+a <- (n -1) * p / (n - p ) * qf (0.95,p,n-p)
+q <- 3
+mu0 <- c(210 ,130 ,130 ,10 ,10 ,140)
+t2 <- n * ( barX - mu0 ) %*% IS %*% ( barX - mu0 )
+cx <- as.matrix ( barX - mu0 )
+T2 <- n * t ( cx ) %*% IS %*% cx
+```
+
+## 4-5)
+
+```{r}
+InHotCR=function(mu0,barX,IS,n){ 
+  mu0=as.vector(mu0)   #mu0 in the code below
+  barX=as.vector(barX) # must be a vector not a matrix!
+  p=dim(IS)[1]
+  a=(n-1)*p/(n-p)*qf(0.95,p,n-p)
+  cx=as.matrix(barX-mu0)
+  T2=n*t(cx)%*%IS%*%cx
+  InHotCR=T2<a
+  InHotCR}
+```
+
+```{r}
+m0=c(214.97,130,129.67,8.3,10.16,141.52)
+InHotCR(m0,barX,IS,n)
+```
+
+## 6)
+
+```{r}
+InBonCR=function(mu0,barX,S,n){ 
+  mu0=as.vector(mu0)  #mu0 must be a vector not a matrix!
+  barX=as.vector(barX)
+  p=dim(S)[1]
+  alpha=0.05/p
+  a=qf(1-alpha,1,n-1)*diag(S)/n
+  cx=as.matrix(barX-mu0)
+  T2=cx^2
+  T2<a
+  InBonCR=T2<a
+  InBonCR
+}
+
+prod(InBonCR(m0,barX,S,n))==1
+```
+
+## 7)
+
+```{r}
+par(mfcol=c(2,3))
+
+alpha=0.05/p
+a=sqrt(qf(1-alpha,1,n-1)*diag(S)/n)
+aa=sqrt((n-1)*p/(n-p)*qf(0.95,p,n-p)*diag(S)/n)
+LP=barX-a
+RP=barX+a
+LPP=barX-aa
+RPP=barX+aa
+
+
+for(i in 1:6){
+  mn=min(LP[i],LPP[i])
+  mx=max(RP[i],RPP[i])
+  plot(c(LP[i],RP[i]),c(0, 0), col= 'red',yaxt='n',ann=FALSE,xlim=c(mn,mx))
+  abline(0,0)
+  points(m0[i],0,pch="*")
+  points(c(barX[i]-aa[i],barX[i]+aa[i]),c(0, 0), col= 'blue',pch="|")
+}
+
+
+```
+
+```{r}
+rr="2dimCR"
+#install.packages("ellipse")
+library('ellipse')
+
+for(i in 1:5){
+  for(j in (i+1):6){
+    SS <- S[c(i,j), c(i,j)]
+    mm <- barX[c(i,j)]
+    
+    plot(
+      ellipse(SS/n, centre = mm,
+              t = sqrt((n-1)*p/(n-p)*qf(0.95,p,n-p)),
+              npoints = 1000),
+      pch = ".", col = "red",
+      main = paste("Vars", i, "and", j)
+    )
+    
+    points(m0[i], m0[j], pch="*", col="black", cex=1.3)
+    rect(LP[i], LP[j], RP[i], RP[j], border="blue")
+  }
+}
+```
+
+## 8)
+
+## 9)
+
+```{r}
+m1 = c(214.99, 129.95, 129.73, 8.51, 9.96, 141.55)
+InHotCR(m1,barX,IS,n)
+prod(InBonCR(m1,barX,S,n))==1 #compare with exanple
+```
+
+## 10)
+
+```{r}
+m2 = c(214.9473, 129.9243, 129.6709, 8.3254, 10.0389, 141.4954)
+InHotCR(m2,barX,IS,n)
+prod(InBonCR(m2,barX,S,n))==1 #compare with example
+```
+
+# Simulation 1: Global Null Testing
