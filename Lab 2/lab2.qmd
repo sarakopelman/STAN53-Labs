@@ -12,20 +12,79 @@ format:
 
 # Printing Banknotes
 
-## 1)
+In this section we will
+
+## 1-2)
+
+We will begin by plotting the data. @tbl-colmeans, [-@tbl-var] and [-@tbl-cor] describes the mean, variance and correlations in the dataset. We note that the average left height is slightly larger than the right, and that the average distance of the inner frame to the bottom is slightly smaller than that to the top, although we have not performed any tests to determine if these differences are statistically significant. We also note that the distance to the bottom and the diagonal has the largest variance. We also see that there are several moderately large correlation present in the dataset, which is natural given the nature of the variables.
 
 ```{r}
+#| echo: false
+#| results: 'hide'
 df <- read.csv("banknotes.csv")
 BG <- df[,1:6]
 
-# Basic summaries
-head(BG)
-colMeans(BG)
-var(BG)
-cor(BG)
-plot(BG)
+library(knitr)
+library(kableExtra)
 
-# QQ plots with names + qqline
+head(BG)
+
+
+
+
+```
+
+```{r}
+#| echo: false
+#| label: tbl-colmeans
+# 2. Column means
+kable(t(colMeans(BG)),
+      caption = "Column Means of BG",
+      digits = 4) %>%
+  kable_styling(full_width = FALSE)
+
+
+```
+
+```{r}
+#| echo: false
+#| label: tbl-var
+# 3. Variance matrix
+kable(var(BG), 
+      caption = "Variance-Covariance Matrix of BG",
+      digits = 4) %>%
+  kable_styling(full_width = FALSE)
+
+
+```
+
+```{r}
+#| echo: false
+#| label: tbl-cor
+# 4. Correlation matrix
+kable(cor(BG),
+      caption = "Correlation Matrix of BG",
+      digits = 4) %>%
+  kable_styling(full_width = FALSE)
+```
+
+@fig-banknotes_pairs, below, plots the variables in the dataset against each other. We one again note that there are correlations visible between several variables pairs (such as for example *right* and *left*), and we also see the presence of some partially separated groups in the data.
+
+```{r}
+#| echo: false
+#| fig-cap: "Scatterplot matrix of the variables in the banknotes dataset"
+#| label: fig-banknotes_pairs
+#| fig-pos: "H"
+plot(BG)
+```
+
+Furthermore @fig-banknotes_qq, below illustrates Normal QQ-plots for the variables in the dataset. We observe that while *length, right, top* and *left* adhere quite well to the normal distribution. However, *bottom* looks quite light-tailed while *diagonal* looks possible bi-modal.
+
+```{r}
+#| echo: false
+#| fig-cap: "QQ-plots of the variables in the banknotes dataset"
+#| label: fig-banknotes_qq
+#| fig-pos: "H"
 par(mfcol = c(2, 3))
 
 for (i in 1:6) {
@@ -37,7 +96,23 @@ for (i in 1:6) {
 
 ```
 
-## 2)
+## 3)
+
+The below output shows how to compute the Hotellings $T^2$ statistic in two difference ways. For a sample of size $n$ with sample mean-vector $\bar X$ (with dimension $p\times1$) and sample covariance matrix $S$ the statistic is defined as follows:
+
+$$
+T^2=n(\bar X-\mu_0)^\top S^{-1}(\bar X-\mu_0)
+$$
+
+where $\mu_0$ is the mean vector under the null-hypothesis.
+
+Hotelling's $T^2$ test is used to determine whether the mean vector of a multivariate dataset differs significantly from a hypothesized mean vector. In this analysis, the data matrix BG has `n` rows (observations) and `p` columns (variables). We first compute the sample covariance matrix `S` of the data, which captures the variances and covariances between variables. Its inverse, `IS = solve(S)`, is used to standardize the differences between the sample mean and the hypothesized mean.
+
+The sample mean vector `barX` is calculated as the column-wise mean of BG. The hypothesized mean vector `mu0` represents the null hypothesis. The Hotelling's $T^2$ statistic is then computed as according to the formula above in two different ways, either by directly multiplying the difference-vector with the inverse, or by converting it into a matrix and transposing when needed to for the dimensions to align.
+
+As can be seen both ways of calculation results in the same value for $T^2$, 41750.76. One may, however, observe that only the second method transposes the difference-vector, yet the code still runs correctly for both. The reason for this stems from the difference in R in how vectors are handled vs matrices. The `%*%` operator automatically treats a vector as a column or row vector depending on the context, opting for the configuration that would allow for the operation to be performed. *Matrices*, however need to have compatible dimensions for operations to run. As the `cx` object is a matrix it needs to be transposed for the operation to be performed, which is done when calculating `T2` . In summary, vectors and one-dimensional matrices are different types of objects in R.
+
+$T^2$ can be converted to an F-statistic using `F = (n - p) / (p * (n - 1)) * T2`. The critical value `a = (n - 1) * p / (n - p) * qf(0.95, p, n - p)` corresponds to the 95% confidence level. If $T^2$ exceeds this the sample mean differs significantly from the hypothesized mean, accounting for the correlation structure of the variables. The observed statistic does exceed the critical value and we can thus reject the null.
 
 ```{r}
 n <- dim ( BG ) [1]
@@ -45,20 +120,21 @@ p <- dim ( BG ) [2]
 S <- cov ( BG )
 IS <- solve ( S )
 barX <- colMeans ( BG )
-```
 
-## 3)
-
-```{r}
 a <- (n -1) * p / (n - p ) * qf (0.95,p,n-p)
 q <- 3
 mu0 <- c(210 ,130 ,130 ,10 ,10 ,140)
 t2 <- n * ( barX - mu0 ) %*% IS %*% ( barX - mu0 )
 cx <- as.matrix ( barX - mu0 )
 T2 <- n * t ( cx ) %*% IS %*% cx
+print(t2)
+print(T2)
+print(a)
 ```
 
 ## 4-5)
+
+The following output provides a function to calculate the that verifies if a point lies inside the six-dimensional ellipsoid serving as the 95% confidence region for the mean vector of bank notes based on Hotelling’s $T^2$ statistic.
 
 ```{r}
 InHotCR=function(mu0,barX,IS,n){ 
@@ -72,12 +148,16 @@ InHotCR=function(mu0,barX,IS,n){
   InHotCR}
 ```
 
+Using this function we test new production line with a new mean vector. The test statistic however shows that the new dimensions are not comparable to the old ones.
+
 ```{r}
 m0=c(214.97,130,129.67,8.3,10.16,141.52)
 InHotCR(m0,barX,IS,n)
 ```
 
 ## 6)
+
+The following function a new mean vector falls within Bonferroni’s confidence rectangular region for the mean value of the old bank note dimensions. As we see from the result the new vector does not fall within this region either.
 
 ```{r}
 InBonCR=function(mu0,barX,S,n){ 
@@ -96,9 +176,17 @@ InBonCR=function(mu0,barX,S,n){
 prod(InBonCR(m0,barX,S,n))==1
 ```
 
-## 7)
+## 7-8)
+
+Figure @fig-banknotes_1dregion, below, shows the Bonferroni and Hotelling confidence intervals for each of the six variables, centered at the mean of the old production line. The red points indicate the endpoints of the Bonferroni intervals, while the blue vertical ticks show the Hotelling marginal intervals. The black stars represent the mean vector of the new production line.
+
+We observe that the new production line’s mean lies outside the Bonferroni intervals for all variables, indicating that the new line may differ significantly from the old line in those aspects. The variable length, however, falls within the Hotelling marginal interval and is right at the edge of the Bonferroni interval, suggesting that its difference is less pronounced.
 
 ```{r}
+#| echo: false
+#| fig-cap: "Bonferroni and Hotelling confidence intervals for each variable with null mean highlighted"
+#| label: fig-banknotes_1dregion
+#| fig-pos: "H"
 par(mfcol=c(2,3))
 
 alpha=0.05/p
@@ -108,60 +196,125 @@ LP=barX-a
 RP=barX+a
 LPP=barX-aa
 RPP=barX+aa
-
+varnames <- colnames(BG)
 
 for(i in 1:6){
-  mn=min(LP[i],LPP[i])
-  mx=max(RP[i],RPP[i])
-  plot(c(LP[i],RP[i]),c(0, 0), col= 'red',yaxt='n',ann=FALSE,xlim=c(mn,mx))
+  mn = min(LP[i], LPP[i])
+  mx = max(RP[i], RPP[i])
+
+  plot(c(LP[i], RP[i]), c(0,0),
+       col='red', yaxt='n',
+       xlim=c(mn, mx),
+       main = varnames[i])   # now it appears
+
   abline(0,0)
-  points(m0[i],0,pch="*")
-  points(c(barX[i]-aa[i],barX[i]+aa[i]),c(0, 0), col= 'blue',pch="|")
+  points(m0[i], 0, pch="*", cex=2, col="black")
+  points(c(barX[i]-aa[i], barX[i]+aa[i]), c(0,0),
+         col='blue', pch="|")
 }
 
 
 ```
 
+@fig-banknotes_2dregion, below, plots the pairwise 2D Hotelling confidence region for the first variable pair (plots for the other variable pairs are available in the .qmd document but were omitted from the report for clarity). We can now see why the mean values of the banknote dimensions from the new production line fail to lie within Hotelling’s confidence region, even though the mean *length* by itself falls within its 1D interval. Specifically, while the mean *length* lies within the Hotelling interval, the mean of the *left* dimension falls outside its axis, so the observed *length–left* pair ultimately falls outside the 2D region. The same reasoning applies to the full 6-dimensional mean vector, which would need to lie inside the boundaries of the 6-dimensional ellipsoid to be fully consistent with the old line.
+
 ```{r}
-rr="2dimCR"
-#install.packages("ellipse")
-library('ellipse')
+#| label: fig-banknotes_2dregion
+#| echo: false
+#| fig-cap: "Pairwise 2D Hotelling confidence region for the first variable pair."
+#| fig-pos: "H"
+#| warning: false
+
+library(ellipse)
+
+varnames <- colnames(BG)
+
+i <- 1
+j <- 2
+SS <- S[c(i,j), c(i,j)]
+mm <- barX[c(i,j)]
+
+ell <- ellipse(SS/n, centre = mm,
+               t = sqrt((n-1)*p/(n-p)*qf(0.95,p,n-p)),
+               npoints = 1000)
+
+xlim <- range(c(ell[,1], m0[i]))
+ylim <- range(c(ell[,2], m0[j]))
+
+# Base R plot directly
+plot(ell, type='l', col = "blue",
+     xlim = xlim, ylim = ylim,
+     main = paste(varnames[i], "vs", varnames[j]),
+     asp=1)
+points(m0[i], m0[j], pch="*", col="black", cex=1.5)
+rect(LP[i], LP[j], RP[i], RP[j], border="red")
+```
+
+```{r}
+#| echo: false
+#| fig-show: 'asis'  # optional, for multiple plots in notebook
+#| warning: false
+varnames <- colnames(BG)
+
+in_report <- knitr::is_latex_output() || knitr::is_html_output()
 
 for(i in 1:5){
   for(j in (i+1):6){
     SS <- S[c(i,j), c(i,j)]
     mm <- barX[c(i,j)]
     
-    plot(
-      ellipse(SS/n, centre = mm,
-              t = sqrt((n-1)*p/(n-p)*qf(0.95,p,n-p)),
-              npoints = 1000),
-      pch = ".", col = "red",
-      main = paste("Vars", i, "and", j)
-    )
+    ell <- ellipse(SS/n, centre = mm,
+                   t = sqrt((n-1)*p/(n-p)*qf(0.95,p,n-p)),
+                   npoints = 1000)
     
-    points(m0[i], m0[j], pch="*", col="black", cex=1.3)
-    rect(LP[i], LP[j], RP[i], RP[j], border="blue")
+    xlim <- range(c(ell[,1], m0[i]))
+    ylim <- range(c(ell[,2], m0[j]))
+    
+    # Skip the first pair
+    if(!(i==1 && j==2)){
+      # Only plot if not in report
+      if(!in_report){
+        plot(ell, type='l', col = "blue",
+             xlim = xlim, ylim = ylim,
+             main = paste(varnames[i], "vs", varnames[j]),
+             asp=1)
+        
+        points(m0[i], m0[j], pch="*", col="black", cex=1.5)
+        rect(LP[i], LP[j], RP[i], RP[j], border="red")
+      }
+    }
   }
 }
+
+
 ```
 
-## 8)
-
 ## 9)
+
+We evaluate a new production line and tests its mean against the old line. The results are described in the below output. We see that once again the new production line is outside the mean vector. Although individual variables (such as once again *length* for Hotellinger) may fall within their marginal intervals, small but consistent differences in several other dimensions are enough for the overall mean vector to fall outside the 6-dimensional confidence region. This sensitivity reflects the multivariate nature of the test.
 
 ```{r}
 m1 = c(214.99, 129.95, 129.73, 8.51, 9.96, 141.55)
 InHotCR(m1,barX,IS,n)
-prod(InBonCR(m1,barX,S,n))==1 #compare with exanple
+
+```
+
+```{r}
+InBonCR(m1,barX,S,n)
 ```
 
 ## 10)
 
+After yet another tuning, the mean vector of the new production line shows that *length* now lies within its Bonferroni confidence interval, indicating that this dimension may be adequately aligned with the old line. However, the other dimensions remain outside their respective intervals, and the overall vector is still outside the 6-dimensional Hotelling region. This indicates that while the tuning has improved the alignment of *length*, the production line still requires further adjustments in the remaining dimensions to align with the original banknotes.
+
 ```{r}
 m2 = c(214.9473, 129.9243, 129.6709, 8.3254, 10.0389, 141.4954)
 InHotCR(m2,barX,IS,n)
-prod(InBonCR(m2,barX,S,n))==1 #compare with example
+
+```
+
+```{r}
+InBonCR(m2,barX,S,n)
 ```
 
 # Simulation 1: Global Null Testing
