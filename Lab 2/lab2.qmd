@@ -317,4 +317,92 @@ InHotCR(m2,barX,IS,n)
 InBonCR(m2,barX,S,n)
 ```
 
-# Simulation 1: Global Null Testing
+# Simulation
+
+In this section we will
+
+## Simulation 1: Global Null Testing
+
+In this section we will consider the sequence of independent random variables $X_1,\dots,X_p$ such that $X_i\sim N(\mu_i,1)$, under the three following scenarios
+
+-   $\mu_1=1.2\sqrt{2\log p},\mu_2=\cdots=\mu_p=0$
+
+-   $\mu_1=\cdots=\mu_{100}=0.5\sqrt{2\log p},\mu_{101}=\cdots=\mu_p=0$
+
+-   $\mu_1=\cdots=\mu_{1000}=0.2\sqrt{2\log p},\mu_{1001}=\cdots=\mu_p=0$
+
+with $p=5000$. Under these scenarios we will test the global null hypothesis
+
+$$
+H_0:\mu_1=\cdots=\mu_p=0
+$$
+
+with significance level $\alpha=0.05$, using Bonferroni and chi-square tests by simulating 1000 replicates in order to estimates their power. @fig-multitest-power, below illustrates the estimated power of both tests under each scenario.
+
+```{r}
+#| label: fig-multitest-power
+#| echo: false
+#| fig-cap: "Estimated power of the Bonferroni max-test and the chi-square global test under three signal configurations with p = 5000"
+#| fig-pos: "H"
+#| warning: false
+n <- 5000
+rep1 <- 1000
+alpha <- 0.05
+
+# Store results
+scenarios <- list(
+  mu1 = {mu <- rep(0, n); mu[1] <- 1.2*sqrt(2*log(n)); mu},
+  mu100 = {mu <- rep(0, n); mu[1:100] <- 0.5*sqrt(2*log(n)); mu},
+  mu1000 = {mu <- rep(0, n); mu[1:1000] <- 0.2*sqrt(2*log(n)); mu}
+)
+
+powers <- data.frame(Test = character(), Scenario = character(), Power = numeric())
+
+for (name in names(scenarios)) {
+  mu <- scenarios[[name]]
+  Bon <- rep(0, rep1)
+  Chi <- rep(0, rep1)
+  
+  for (j in 1:rep1) {
+    X <- rnorm(n) + mu
+    Bon[j] <- max(abs(X)) > qnorm(1 - alpha/(2*n))
+    Chi[j] <- sum(X^2) > qchisq(1 - alpha, n)
+  }
+  
+  powers <- rbind(
+    powers,
+    data.frame(Test = "Bonferroni", Scenario = name, Power = mean(Bon)),
+    data.frame(Test = "Chi-squared", Scenario = name, Power = mean(Chi))
+  )
+}
+
+library(ggplot2)
+
+# Bar plot
+ggplot(powers, aes(x = Scenario, y = Power, fill = Test)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ylim(0,1) +
+  labs(title = "Power comparison: Bonferroni vs Chi-squared",
+       y = "Estimated Power") +
+  theme_minimal()
+
+
+```
+
+We observe that while the Bonferroni test is much more powerful than the chi-square test under the first scenario, it is less powerful under the second, and the relationship is completely reversed in the third. To understand why this is, we need to consider how the Bonferroni test works.
+
+The Bonferroni method controls the family-wise error rate by testing each individual hypothesis at level $\alpha/p$. Equivalently, we reject the global null hypothesis $H_0$ if any individual $p$–value satisfies
+
+$$p_j < \frac{\alpha}{p}.$$
+
+Bonferroni thus reacts to the most significant coordinate. In the first scenario, the signal is sparse but strong, meaning that the single non-zero mean produces a p-value above the threshold, resulting in a fairly powerful test. In the later scenarios, however, the signal is less sparse but weaker: although many coordinates deviate from zero, the individual p-values are not extreme enough to pass the Bonferroni threshold, resulting in lower power.
+
+The chi-square test, on the other hand, aggregates evidence across all coordinates using the statistic
+
+$$
+T = \sum_{j=1}^p X_j^2,
+$$
+
+which is compared to the $\chi^2_p$ distribution under $H_0$. This makes the chi-square test weak in sparse scenarios, even if the signal is strong. However, in the denser scenarios, it outperforms the Bonferroni test because each non-zero signal, although small, contributes to the overall test statistic, accumulating evidence against the null hypothesis.
+
+In summary, the Bonferroni test is most powerful when the signal is concentrated in a few strong coordinates, because it only requires one extremely significant p-value to reject the null. In contrast, the chi-square test performs better when the signal is spread across many coordinates, as it accumulates moderate effects to detect deviations from the null.
