@@ -406,3 +406,113 @@ $$
 which is compared to the $\chi^2_p$ distribution under $H_0$. This makes the chi-square test weak in sparse scenarios, even if the signal is strong. However, in the denser scenarios, it outperforms the Bonferroni test because each non-zero signal, although small, contributes to the overall test statistic, accumulating evidence against the null hypothesis.
 
 In summary, the Bonferroni test is most powerful when the signal is concentrated in a few strong coordinates, because it only requires one extremely significant p-value to reject the null. In contrast, the chi-square test performs better when the signal is spread across many coordinates, as it accumulates moderate effects to detect deviations from the null.
+
+## Simulation 2: Multiple Testing
+
+In this section we will explore multiple testing, considering the sequence of independent random variables $X_1,\dots,X_p$ such that $X_i\sim N(\mu_i,1)$, under the following two scenarios
+
+-   $\mu_1=\cdots=\mu_{10}=\sqrt{2\log p},\mu_{11}=\cdots=\mu_p=0$
+
+-   $\mu_1=\cdots=\mu_{500}=\sqrt{2\log p},\mu_{501}=\cdots=\mu_p=0$
+
+with $p=5000$. Under these scenarios we will test the hypotheses
+
+$$
+H_{0i}:\mu_i=0
+$$
+
+for $i\in\{1,\dots,p\}$ with significance level $\alpha=0.05$, using the Bonferroni and Benjamini-Hochberg multiple testing procedure,by simulating 1000 replicates in order to estimates their family wise error rate (FWER), false discovery rate (FDR), and power. @tbl-multitest, below, describes the estimation for these metric for both scenarios.
+
+```{r}
+#| echo: false
+n <- 5000
+rep1 <- 1000
+alpha <- 0.05
+
+run_simulation <- function(k, n, rep1, alpha) {
+  mu <- rep(0, n)
+  mu[1:k] <- sqrt(2*log(n))
+  
+  # Initialize vectors
+  T1Bon <- FDPBon <- TPPBon <- numeric(rep1)
+  T1BH <- FDPBH <- TPPBH <- numeric(rep1)
+  
+  qBH <- seq(1, n) * alpha / (2 * n)
+  
+  for (i in 1:rep1) {
+    X <- rnorm(n) + mu
+    
+    # Bonferroni
+    Bon <- abs(X) > qnorm(1 - alpha/(2*n))
+    RBon <- sum(Bon)
+    VBon <- sum(Bon[(k+1):n])
+    T1Bon[i] <- VBon > 0
+    FDPBon[i] <- VBon / max(RBon, 1)
+    TPPBon[i] <- (RBon - VBon) / k
+    
+    # BH
+    U <- sort(abs(X), decreasing = TRUE, index.return = TRUE)
+    kBHs <- 0
+    decBH <- which(U$x > qnorm(1 - qBH))
+    if (length(decBH) > 0) kBHs <- max(decBH)
+    BHs <- rep(0, n)
+    BHs[1:kBHs] <- 1
+    BH <- rep(0, n)
+    BH[U$ix] <- BHs
+    
+    RBH <- sum(BH)
+    VBH <- sum(BH[(k+1):n])
+    T1BH[i] <- VBH > 0
+    FDPBH[i] <- VBH / max(RBH, 1)
+    TPPBH[i] <- (RBH - VBH) / k
+  }
+  
+  # Return summarized results
+  list(
+    FWERBon = mean(T1Bon),
+    FWERBH = mean(T1BH),
+    FDRBon = mean(FDPBon),
+    FDRBH = mean(FDPBH),
+    PowerBon = mean(TPPBon),
+    PowerBH = mean(TPPBH)
+  )
+}
+
+# Run both scenarios
+results_k10  <- run_simulation(k = 10, n, rep1, alpha)
+results_k500 <- run_simulation(k = 500, n, rep1, alpha)
+
+```
+
+```{r}
+#| echo: false
+#| label: tbl-multitest
+library(knitr)
+library(dplyr)
+
+# Combine results into a long table
+results_table <- data.frame(
+  Scenario = rep(c("k = 10", "k = 500"), each = 2),
+  Test = rep(c("Bonferroni", "BH"), times = 2),
+  FWER = c(results_k10$FWERBon, results_k10$FWERBH,
+           results_k500$FWERBon, results_k500$FWERBH),
+  FDR   = c(results_k10$FDRBon, results_k10$FDRBH,
+            results_k500$FDRBon, results_k500$FDRBH),
+  Power = c(results_k10$PowerBon, results_k10$PowerBH,
+            results_k500$PowerBon, results_k500$PowerBH)
+)
+
+# Round for display
+results_table[, 3:5] <- round(results_table[, 3:5], 3)
+
+# Print table
+kable(
+  results_table,
+  caption = "FWER, FDR, and Power for Bonferroni and BH tests across two scenarios",
+  align = c("l", "l", "c", "c", "c")
+)
+
+
+```
+
+We observe that while the FWER stays around $\alpha=0.05$ for Bonferroni in
