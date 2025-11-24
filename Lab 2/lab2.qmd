@@ -348,6 +348,7 @@ with significance level $\alpha=0.05$, using Bonferroni and chi-square tests by 
 #| fig-pos: "H"
 #| warning: false
 #| message: false
+set.seed(5)
 n <- 5000
 rep1 <- 1000
 alpha <- 0.05
@@ -524,7 +525,7 @@ kable(
 
 ```
 
-We observe that while the FWER stays around $\alpha = 0.05$ for Bonferroni in both scenarios, it increases from $0.288$ to $1$ for the Benjamini–Hochberg (BH) procedure.
+We observe that while the FWER stays around $\alpha = 0.05$ for Bonferroni in both scenarios, it increases from $0.289$ to $1$ for the Benjamini–Hochberg (BH) procedure.
 
 The BH procedure sorts the $p$-values $p_{(1)}\le\cdots\le p_{(m)}$ and finds the largest index $k$ with
 
@@ -534,11 +535,11 @@ $$
 
 then rejects $H_{(1)},\dots,H_{(k)}$.
 
-In the first scenario, the signal is sparse, so the true nulls—which generally have larger $p$-values—are compared against moderately small thresholds. For example, assuming the 10 non-nulls have the smallest $p$-values and are correctly rejected, the first null is compared to a threshold of $\frac{11}{p}\alpha$, meaning that most nulls are unlikely to be rejected, and the FWER remains low.
+In the first scenario, the signal is sparse, so the true nulls, which generally have larger $p$-values, are compared against moderately small thresholds. For example, assuming the 10 non-nulls have the smallest $p$-values and are correctly rejected, the first null is compared to a threshold of $\frac{11}{p}\alpha$, meaning that most nulls are unlikely to be rejected, and the FWER remains low.
 
 In the second scenario, the signal is dense. Here, many true alternatives likely have small $p$-values, which pushes the BH rejection threshold to larger values. Consequently, the nulls are more likely to be compared against these higher thresholds, and the probability of at least one false rejection in each replicate grows toward 1.
 
-On the other hand, the false discovery rate starts at 0.011 for Bonferroni in the first scenario and decreases to 0 in the second, a result of Bonferroni’s conservativeness. Because the Bonferroni threshold is very strict, it produces very few rejections overall, and when it does reject, it almost always corresponds to a true signal. This also means that the power remains roughly the same in both scenarios: although there are more signals to discover in the second scenario, the fraction detected remains low.
+On the other hand, the false discovery rate starts at 0.012 for Bonferroni in the first scenario and decreases to 0 in the second, a result of Bonferroni’s conservativeness. Because the Bonferroni threshold is very strict, it produces very few rejections overall, and when it does reject, it almost always corresponds to a true signal. This also means that the power remains roughly the same in both scenarios: although there are more signals to discover in the second scenario, the fraction detected remains low.
 
 In contrast, BH is designed to control the FDR rather than the FWER. This allows it to reject more hypotheses, accepting some false discoveries as long as their proportion is controlled. As a result, in the sparse scenario, power is relatively low, but in the dense scenario, power increases. By allowing a controlled rate of false discoveries, BH can detect a much larger number of true signals overall, which is especially beneficial in dense settings.
 
