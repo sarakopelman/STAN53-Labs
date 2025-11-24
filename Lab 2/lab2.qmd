@@ -8,19 +8,21 @@ format:
     toc: false
     number-sections: false
     booktabs: true
+header-includes:
+  - \usepackage{float}  
 ---
 
 # Printing Banknotes
 
-In this section we will
-
 ## 1-2)
 
-We will begin by plotting the data. @tbl-colmeans, [-@tbl-var] and [-@tbl-cor] describes the mean, variance and correlations in the dataset. We note that the average left height is slightly larger than the right, and that the average distance of the inner frame to the bottom is slightly smaller than that to the top, although we have not performed any tests to determine if these differences are statistically significant. We also note that the distance to the bottom and the diagonal has the largest variance. We also see that there are several moderately large correlation present in the dataset, which is natural given the nature of the variables.
+We will begin by plotting the data. @tbl-colmeans, [-@tbl-var] and [-@tbl-cor] describes the mean, variance and correlations in the dataset. We note that the average left height is slightly larger than the right, and that the average distance of the inner frame to the bottom is slightly smaller than that to the top, although we have not performed any tests to determine if these differences are statistically significant. We also note that the distance to the bottom and the diagonal has the largest variance. We also see that there are several moderately large correlations present in the dataset, which is natural given the nature of the variables.
 
 ```{r}
 #| echo: false
 #| results: 'hide'
+#| warning: false
+
 df <- read.csv("banknotes.csv")
 BG <- df[,1:6]
 
@@ -46,6 +48,8 @@ kable(t(colMeans(BG)),
 
 ```
 
+\newpage
+
 ```{r}
 #| echo: false
 #| label: tbl-var
@@ -68,7 +72,7 @@ kable(cor(BG),
   kable_styling(full_width = FALSE)
 ```
 
-@fig-banknotes_pairs, below, plots the variables in the dataset against each other. We one again note that there are correlations visible between several variables pairs (such as for example *right* and *left*), and we also see the presence of some partially separated groups in the data.
+@fig-banknotes_pairs, on the following page, plots the variables in the dataset against each other. We once again note that there are correlations visible between several variable pairs (such as for example *right* and *left*), and we also see the presence of some partially separated groups in the data.
 
 ```{r}
 #| echo: false
@@ -78,7 +82,7 @@ kable(cor(BG),
 plot(BG)
 ```
 
-Furthermore @fig-banknotes_qq, below illustrates Normal QQ-plots for the variables in the dataset. We observe that while *length, right, top* and *left* adhere quite well to the normal distribution. However, *bottom* looks quite light-tailed while *diagonal* looks possible bi-modal.
+Furthermore, @fig-banknotes_qq, on the following page, illustrates Normal QQ-plots for the variables in the dataset. We observe that *length, right, top* and *left* adhere quite well to the normal distribution. However, *bottom* looks quite light-tailed while *diagonal* looks possible bi-modal.
 
 ```{r}
 #| echo: false
@@ -106,14 +110,6 @@ $$
 
 where $\mu_0$ is the mean vector under the null-hypothesis.
 
-Hotelling's $T^2$ test is used to determine whether the mean vector of a multivariate dataset differs significantly from a hypothesized mean vector. In this analysis, the data matrix BG has `n` rows (observations) and `p` columns (variables). We first compute the sample covariance matrix `S` of the data, which captures the variances and covariances between variables. Its inverse, `IS = solve(S)`, is used to standardize the differences between the sample mean and the hypothesized mean.
-
-The sample mean vector `barX` is calculated as the column-wise mean of BG. The hypothesized mean vector `mu0` represents the null hypothesis. The Hotelling's $T^2$ statistic is then computed as according to the formula above in two different ways, either by directly multiplying the difference-vector with the inverse, or by converting it into a matrix and transposing when needed to for the dimensions to align.
-
-As can be seen both ways of calculation results in the same value for $T^2$, 41750.76. One may, however, observe that only the second method transposes the difference-vector, yet the code still runs correctly for both. The reason for this stems from the difference in R in how vectors are handled vs matrices. The `%*%` operator automatically treats a vector as a column or row vector depending on the context, opting for the configuration that would allow for the operation to be performed. *Matrices*, however need to have compatible dimensions for operations to run. As the `cx` object is a matrix it needs to be transposed for the operation to be performed, which is done when calculating `T2` . In summary, vectors and one-dimensional matrices are different types of objects in R.
-
-$T^2$ can be converted to an F-statistic using `F = (n - p) / (p * (n - 1)) * T2`. The critical value `a = (n - 1) * p / (n - p) * qf(0.95, p, n - p)` corresponds to the 95% confidence level. If $T^2$ exceeds this the sample mean differs significantly from the hypothesized mean, accounting for the correlation structure of the variables. The observed statistic does exceed the critical value and we can thus reject the null.
-
 ```{r}
 n <- dim ( BG ) [1]
 p <- dim ( BG ) [2]
@@ -131,6 +127,14 @@ print(t2)
 print(T2)
 print(a)
 ```
+
+Hotelling's $T^2$ test is used to determine whether the mean vector of a multivariate dataset differs significantly from a hypothesized mean vector. In this analysis, the data matrix BG has `n` rows (observations) and `p` columns (variables). We first compute the sample covariance matrix `S` of the data and its inverse, `IS = solve(S)`.
+
+The sample mean vector `barX` is calculated as the column-wise mean of BG. The hypothesized mean vector `mu0` represents the null hypothesis. The Hotelling's $T^2$ statistic is then computed as according to the formula above in two different ways, either by directly multiplying the difference-vector with the inverse, or by converting it into a matrix and transposing when needed to for the dimensions to align.
+
+As can be seen both ways of calculation results in the same value for $T^2$, 41750.76. One may, however, observe that only the second method transposes the difference-vector, yet the code still runs correctly for both. The reason for this stems from the difference in R in how vectors are handled vs matrices. The `%*%` operator automatically treats a vector as a column or row vector depending on the context, opting for the configuration that would allow for the operation to be performed. *Matrices*, however need to have compatible dimensions for operations to run. As the `cx` object is a matrix it needs to be transposed for the operation to be performed, which is done when calculating `T2` . In summary, vectors and one-dimensional matrices are different types of objects in R.
+
+$T^2$ can be converted to an F-statistic using `F = (n - p) / (p * (n - 1)) * T2`. The critical value `a = (n - 1) * p / (n - p) * qf(0.95, p, n - p)` corresponds to the 95% confidence level. If $T^2$ exceeds this the sample mean differs significantly from the hypothesized mean, accounting for the correlation structure of the variables. The observed statistic does exceed the critical value and we can thus reject the null.
 
 ## 4-5)
 
@@ -252,7 +256,7 @@ rect(LP[i], LP[j], RP[i], RP[j], border="red")
 
 ```{r}
 #| echo: false
-#| fig-show: 'asis'  # optional, for multiple plots in notebook
+#| fig-show: 'asis' 
 #| warning: false
 varnames <- colnames(BG)
 
@@ -319,8 +323,6 @@ InBonCR(m2,barX,S,n)
 
 # Simulation
 
-In this section we will
-
 ## Simulation 1: Global Null Testing
 
 In this section we will consider the sequence of independent random variables $X_1,\dots,X_p$ such that $X_i\sim N(\mu_i,1)$, under the three following scenarios
@@ -345,6 +347,7 @@ with significance level $\alpha=0.05$, using Bonferroni and chi-square tests by 
 #| fig-cap: "Estimated power of the Bonferroni max-test and the chi-square global test under three signal configurations with p = 5000"
 #| fig-pos: "H"
 #| warning: false
+#| message: false
 n <- 5000
 rep1 <- 1000
 alpha <- 0.05
@@ -425,6 +428,9 @@ for $i\in\{1,\dots,p\}$ with significance level $\alpha=0.05$, using the Bonferr
 
 ```{r}
 #| echo: false
+#| warning: false
+#| message: false
+#| results: 'asis'
 n <- 5000
 rep1 <- 1000
 alpha <- 0.05
@@ -487,6 +493,9 @@ results_k500 <- run_simulation(k = 500, n, rep1, alpha)
 ```{r}
 #| echo: false
 #| label: tbl-multitest
+#| warning: false
+#| message: false
+#| results: 'asis'
 library(knitr)
 library(dplyr)
 
@@ -515,4 +524,24 @@ kable(
 
 ```
 
-We observe that while the FWER stays around $\alpha=0.05$ for Bonferroni in
+We observe that while the FWER stays around $\alpha = 0.05$ for Bonferroni in both scenarios, it increases from $0.288$ to $1$ for the Benjamini–Hochberg (BH) procedure.
+
+The BH procedure sorts the $p$-values $p_{(1)}\le\cdots\le p_{(m)}$ and finds the largest index $k$ with
+
+$$
+p_{(k)} \le \frac{k}{m}\alpha,
+$$
+
+then rejects $H_{(1)},\dots,H_{(k)}$.
+
+In the first scenario, the signal is sparse, so the true nulls—which generally have larger $p$-values—are compared against moderately small thresholds. For example, assuming the 10 non-nulls have the smallest $p$-values and are correctly rejected, the first null is compared to a threshold of $\frac{11}{p}\alpha$, meaning that most nulls are unlikely to be rejected, and the FWER remains low.
+
+In the second scenario, the signal is dense. Here, many true alternatives likely have small $p$-values, which pushes the BH rejection threshold to larger values. Consequently, the nulls are more likely to be compared against these higher thresholds, and the probability of at least one false rejection in each replicate grows toward 1.
+
+On the other hand, the false discovery rate starts at 0.011 for Bonferroni in the first scenario and decreases to 0 in the second, a result of Bonferroni’s conservativeness. Because the Bonferroni threshold is very strict, it produces very few rejections overall, and when it does reject, it almost always corresponds to a true signal. This also means that the power remains roughly the same in both scenarios: although there are more signals to discover in the second scenario, the fraction detected remains low.
+
+In contrast, BH is designed to control the FDR rather than the FWER. This allows it to reject more hypotheses, accepting some false discoveries as long as their proportion is controlled. As a result, in the sparse scenario, power is relatively low, but in the dense scenario, power increases. By allowing a controlled rate of false discoveries, BH can detect a much larger number of true signals overall, which is especially beneficial in dense settings.
+
+# Use of AI
+
+AI (ChatGPT) has been utilized in this report primarily to assist with coding, including constructing and formatting plots, generating LaTeX code, and suggesting functions. It was also used for light spelling and grammar checks, and for suggestions on how to more clearly convey results.
