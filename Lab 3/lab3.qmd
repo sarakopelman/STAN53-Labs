@@ -16,7 +16,13 @@ header-includes:
 
 ## 1)
 
+We begin by analyzing the amitriptyline overdose data. Fig @fig-scatter, below illustrates scatter plots between all the variables in the data-set. We observe that some inputs variables such as $Z_2$ and $Z_3$ show indications of being correlated with each other. We also see that that the two outputs $Y_1$ and $Y_2$ seem to be quite clearly correlated, implying that a multivariate multiple regression approach may be worthwhile.
+
 ```{r}
+#| echo: false
+#| fig-cap: "Scatter plots of the variables in the amitriptyline overdose dataset"
+#| label: fig-scatter
+#| fig-pos: "H"
 data.df <- read.table("ami.data.txt")
 names <- c("Y1","Y2","Z1","Z2","Z3","Z4","Z5")
 colnames(data.df) <- names
@@ -25,6 +31,8 @@ pairs(data.df)
 ```
 
 ## 2)
+
+To begin with, we perform a univariate regression of $Y_1$ on $Z_1-Z_5$.
 
 ```{r}
 model.Y1 <- lm (Y1 ~ Z1 + Z2 + Z3 +Z4 + Z5, data = data.df)
@@ -271,6 +279,8 @@ boxplot(PRED2[,1:5]-PE[,1:5])
 boxplot(PRED3[,1:5]-PE[,1:5])
 ```
 
+Zn%\*%betahat
+
 ```{r}
 rm(list = ls())
 
@@ -312,7 +322,7 @@ for (k in c(2,5,10,100,500,950))
 
 ###50 replicates
 
-rep1 <- 50 
+rep1 <- 100
 
 
 PE   <- matrix(rep(0,6*rep1),nrow=rep1)
@@ -376,18 +386,361 @@ boxplot(PRED3[,1:5]-PE[,1:5])
 ```
 
 ```{r}
+rm(list = ls())
+
 n <- 1000
 p <- 950
-sigma <- 1 / sqrt(n)
-Z <- matrix(rnorm(n * p, mean = 0, sd = sigma), nrow = n, ncol = p)
+PE<- rep(0,6)
+PRED1 <- rep(0,6)
+PRED2 <- rep(0,6)
+PRED3 <- rep(0,6)
 
-beta = rep(0,950)
-beta[1:5] <- 3 #This model will not have an intercept
+Z <- matrix(rnorm(n*p,0,1/sqrt(n)),nrow=n)
+
+beta      <-rep(0,p) 
+beta[1:5] <-3
+
+mu      <- Z %*% beta
 epsilon <- rnorm(n)
 
-Y = Z%*%beta + epsilon
+Y       <- mu + epsilon
 
-subset = c(2,5,10,100,500,950)
+i <- 1
 
-for 
+for (k in c(2,5,10,100,500,950))
+{  
+  Zn <- Z[,1:k]
+  M1 <- solve(t(Zn)%*%Zn)%*%t(Zn)
+  M2 <- Zn%*%M1
+  betahat <- M1%*%Y
+  muhat   <- Zn%*%betahat
+  PE[i]   <- sum((muhat-mu)^2) + n
+  RSS     <- sum((muhat-Y)^2)
+  PRED1[i]<- RSS + 2*k
+  PRED2[i]<- RSS*(1 + 2*k/(n-k)) 
+  res1    <- (Y-muhat)/(1-diag(M2))
+  PRED3[i]<- sum(res1^2)
+  i = i+1
+} 
+```
+
+```{r}
+rm(list = ls())
+
+n <- 1000
+p <- 950
+PE<- rep(0,6)
+PRED1 <- rep(0,6)
+PRED2 <- rep(0,6)
+PRED3 <- rep(0,6)
+
+Z <- matrix(rnorm(n*p,0,1/sqrt(n)),nrow=n)
+
+beta      <-rep(0,p) 
+beta[1:5] <-3
+
+mu      <- Z %*% beta
+epsilon <- rnorm(n)
+
+Y       <- mu + epsilon
+
+i <- 1
+
+for (k in c(2,5,10,100,500,950))
+{  
+  Zn <- Z[,1:k]
+  M1 <- solve(t(Zn)%*%Zn)%*%t(Zn)
+  M2 <- Zn%*%M1
+  betahat <- M1%*%Y
+  muhat   <- Zn%*%betahat
+  PE[i]   <- sum((muhat-mu)^2) + n
+  RSS     <- sum((muhat-Y)^2)
+  PRED1[i]<- RSS + 2*k
+  PRED2[i]<- RSS*(1 + 2*k/(n-k)) 
+  res1    <- (Y-muhat)/(1-diag(M2))
+  PRED3[i]<- sum(res1^2)
+  i = i+1
+} 
+```
+
+```{r}
+rm(list = ls())
+
+n <- 1000
+p <- 950
+rep1 <- 100
+k_values <- c(2,5,10,100,500,950)
+nk <- length(k_values)
+
+# Preallocate matrices
+PE <- matrix(0, nrow=rep1, ncol=nk)
+PRED1 <- matrix(0, nrow=rep1, ncol=nk)
+PRED2 <- matrix(0, nrow=rep1, ncol=nk)
+PRED3 <- matrix(0, nrow=rep1, ncol=nk)
+
+# True beta and mean
+beta <- rep(0,p)
+beta[1:5] <- 3
+Z <- matrix(rnorm(n*p,0,1/sqrt(n)), nrow=n)
+mu <- Z %*% beta
+
+# recompute inverses and hat diagonals for each k
+XtX_inv_list <- vector("list", nk)
+H_diag_list <- vector("list", nk)
+
+for (i in seq_along(k_values)) {
+  k <- k_values[i]
+  Zn <- Z[, 1:k]
+  
+  XtX_inv <- solve(crossprod(Zn))          # (Zn' Zn)^{-1}
+  XtX_inv_list[[i]] <- XtX_inv
+  
+  # Precompute diagonal of hat matrix for LOOCV
+  H_diag_list[[i]] <- rowSums((Zn %*% XtX_inv) * Zn)
+}
+
+# Main loop over repetitions
+for (j in 1:rep1) {
+  
+  epsilon <- rnorm(n)
+  Y <- mu + epsilon
+  
+  for (i in seq_along(k_values)) {
+    k <- k_values[i]
+    Zn <- Z[, 1:k]
+    XtX_inv <- XtX_inv_list[[i]]
+    h <- H_diag_list[[i]]
+    
+    # Least squares
+    betahat <- XtX_inv %*% crossprod(Zn, Y)
+    muhat <- Zn %*% betahat
+    
+    # Conditional PE
+    PE[j,i] <- sum((muhat - mu)^2) + n
+    
+    # RSS
+    RSS <- sum((Y - muhat)^2)
+    
+    # Prediction estimates
+    PRED1[j,i] <- RSS + 2*k             # sigma^2 = 1
+    PRED2[j,i] <- RSS * (1 + 2*k/(n-k)) # estimated sigma^2
+    
+    # LOOCV PE
+    res1 <- (Y - muhat) / (1 - h)
+    PRED3[j,i] <- sum(res1^2)
+  }
+}
+boxplot(PE) 
+boxplot(PE-PE[,2])
+length(which(PE-PE[,2]<0))
+boxplot(PE[,1:3]-PE[,2])
+boxplot(PRED1-PRED1[,2])
+length(which(PRED1-PRED1[,2]<0))
+
+boxplot(PRED1[,1:3]-PRED1[,2])
+boxplot(PRED2-PRED2[,2])
+length(which(PRED2-PRED2[,2]<0))
+
+boxplot(PRED2[,1:3]-PRED2[,2])
+boxplot(PRED3-PRED3[,2])
+boxplot(PRED3[,1:3]-PRED3[,2])
+length(which(PRED3-PRED3[,2]<0))
+
+
+boxplot(PRED1-PE)
+boxplot(PRED2-PE)
+boxplot(PRED2[,1:5]-PE[,1:5])
+boxplot(PRED3[,1:5]-PE[,1:5])
+```
+
+```{r}
+rm(list = ls())
+
+library(knitr)
+
+# -----------------------------
+# Parameters
+# -----------------------------
+n <- 1000
+p <- 950
+rep1 <- 100
+k_values <- c(2,5,10,100,500,950)
+nk <- length(k_values)
+
+# -----------------------------
+# Single replicate setup
+# -----------------------------
+# Preallocate
+PE <- rep(0, nk)
+PRED1 <- rep(0, nk)
+PRED2 <- rep(0, nk)
+PRED3 <- rep(0, nk)
+
+# True beta and mean
+beta <- rep(0,p)
+beta[1:5] <- 3
+Z <- matrix(rnorm(n*p,0,1/sqrt(n)), nrow=n)
+mu <- Z %*% beta
+
+# Single replicate
+epsilon <- rnorm(n)
+Y <- mu + epsilon
+
+# Loop over models
+i <- 1
+for (k in k_values) {
+  Zn <- Z[,1:k]
+  M1 <- solve(t(Zn) %*% Zn) %*% t(Zn)
+  M2 <- Zn %*% M1
+  betahat <- M1 %*% Y
+  muhat <- Zn %*% betahat
+  
+  # PE
+  PE[i] <- sum((muhat - mu)^2) + n
+  
+  # RSS and predictions
+  RSS <- sum((Y - muhat)^2)
+  PRED1[i] <- RSS + 2*k
+  PRED2[i] <- RSS*(1 + 2*k/(n-k))
+  
+  # LOOCV PE
+  res1 <- (Y - muhat)/(1 - diag(M2))
+  PRED3[i] <- sum(res1^2)
+  
+  i <- i + 1
+}
+
+# -----------------------------
+# AIC and BIC for single replicate
+# -----------------------------
+set.seed(2025)
+epsilon_single <- rnorm(n)
+Y_single <- mu + epsilon_single
+
+AIC_vals <- numeric(nk)
+BIC_vals <- numeric(nk)
+
+i <- 1
+for (k in k_values) {
+  Zn <- Z[,1:k]
+  M1 <- solve(t(Zn) %*% Zn) %*% t(Zn)
+  betahat <- M1 %*% Y_single
+  muhat <- Zn %*% betahat
+  
+  RSS <- sum((Y_single - muhat)^2)
+  
+  AIC_vals[i] <- n*log(RSS/n) + 2*k
+  BIC_vals[i] <- n*log(RSS/n) + k*log(n)
+  i <- i + 1
+}
+
+AIC_choice <- k_values[which.min(AIC_vals)]
+BIC_choice <- k_values[which.min(BIC_vals)]
+
+cat("Single replicate results:\n")
+cat("AIC values:", AIC_vals, "\n")
+cat("BIC values:", BIC_vals, "\n")
+cat("AIC-selected model:", AIC_choice, "\n")
+cat("BIC-selected model:", BIC_choice, "\n\n")
+
+# -----------------------------
+# Multi-replicate setup
+# -----------------------------
+# Preallocate matrices
+PE_mat <- matrix(0, nrow=rep1, ncol=nk)
+PRED1_mat <- matrix(0, nrow=rep1, ncol=nk)
+PRED2_mat <- matrix(0, nrow=rep1, ncol=nk)
+PRED3_mat <- matrix(0, nrow=rep1, ncol=nk)
+
+# Precompute inverses and hat diagonals
+XtX_inv_list <- vector("list", nk)
+H_diag_list <- vector("list", nk)
+
+for (i in seq_along(k_values)) {
+  k <- k_values[i]
+  Zn <- Z[, 1:k]
+  
+  XtX_inv <- solve(crossprod(Zn))
+  XtX_inv_list[[i]] <- XtX_inv
+  H_diag_list[[i]] <- rowSums((Zn %*% XtX_inv) * Zn)
+}
+
+# Matrices to store AIC/BIC counts
+AIC_choice_counts <- integer(nk)
+BIC_choice_counts <- integer(nk)
+
+# Main loop over repetitions
+for (j in 1:rep1) {
+  epsilon <- rnorm(n)
+  Y <- mu + epsilon
+  
+  AIC_vals <- numeric(nk)
+  BIC_vals <- numeric(nk)
+  
+  for (i in seq_along(k_values)) {
+    k <- k_values[i]
+    Zn <- Z[,1:k]
+    XtX_inv <- XtX_inv_list[[i]]
+    h <- H_diag_list[[i]]
+    
+    # Least squares
+    betahat <- XtX_inv %*% crossprod(Zn, Y)
+    muhat <- Zn %*% betahat
+    
+    # Conditional PE
+    PE_mat[j,i] <- sum((muhat - mu)^2) + n
+    
+    # RSS and predictions
+    RSS <- sum((Y - muhat)^2)
+    PRED1_mat[j,i] <- RSS + 2*k
+    PRED2_mat[j,i] <- RSS*(1 + 2*k/(n-k))
+    
+    # LOOCV PE
+    res1 <- (Y - muhat)/(1 - h)
+    PRED3_mat[j,i] <- sum(res1^2)
+    
+    # AIC/BIC for this replicate
+    AIC_vals[i] <- n*log(RSS/n) + 2*k
+    BIC_vals[i] <- n*log(RSS/n) + k*log(n)
+  }
+  
+  # Count selected models
+  AIC_choice_counts[which.min(AIC_vals)] <- AIC_choice_counts[which.min(AIC_vals)] + 1
+  BIC_choice_counts[which.min(BIC_vals)] <- BIC_choice_counts[which.min(BIC_vals)] + 1
+}
+
+# -----------------------------
+# Boxplots for PE/PRED with titles
+# -----------------------------
+boxplot(PE_mat, main="PE over 100 replicates")
+boxplot(PE_mat - PE_mat[,2], main="PE differences relative to k=5")
+boxplot(PE_mat[,1:3] - PE_mat[,2], main="PE differences for small k models")
+
+boxplot(PRED1_mat - PRED1_mat[,2], main="PRED1 differences relative to k=5")
+boxplot(PRED1_mat[,1:3] - PRED1_mat[,2], main="PRED1 differences for small k models")
+
+boxplot(PRED2_mat - PRED2_mat[,2], main="PRED2 differences relative to k=5")
+boxplot(PRED2_mat[,1:3] - PRED2_mat[,2], main="PRED2 differences for small k models")
+
+boxplot(PRED3_mat - PRED3_mat[,2], main="PRED3 differences relative to k=5")
+boxplot(PRED3_mat[,1:3] - PRED3_mat[,2], main="PRED3 differences for small k models")
+
+boxplot(PRED1_mat - PE_mat, main="PRED1 minus PE")
+boxplot(PRED2_mat - PE_mat, main="PRED2 minus PE")
+boxplot(PRED2_mat[,1:5] - PE_mat[,1:5], main="PRED2 minus PE (k=2,5,10,100,500)")
+boxplot(PRED3_mat[,1:5] - PE_mat[,1:5], main="PRED3 minus PE (k=2,5,10,100,500)")
+
+# -----------------------------
+# Table for AIC/BIC model selections over 100 replicates using kable
+# -----------------------------
+selection_table <- data.frame(
+  Model = k_values,
+  AIC_Selected = AIC_choice_counts,
+  BIC_Selected = BIC_choice_counts
+)
+
+kable(selection_table, caption = "Number of times each model was selected by AIC and BIC over 100 replicates")
+
+
+
 ```
