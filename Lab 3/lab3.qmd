@@ -16,13 +16,16 @@ header-includes:
 
 ## 1)
 
-We begin by analyzing the amitriptyline overdose data. Fig @fig-scatter, below illustrates scatter plots between all the variables in the data-set. We observe that some inputs variables such as $Z_2$ and $Z_3$ show indications of being correlated with each other. We also see that that the two outputs $Y_1$ and $Y_2$ seem to be quite clearly correlated, implying that a multivariate multiple regression approach may be worthwhile.
+We begin by analyzing the amitriptyline overdose data. @fig-scatter, below illustrates scatter plots between all the variables in the data-set. We observe that some inputs variables such as $Z_2$ and $Z_3$ show indications of being correlated with each other. We also see that that the two outputs $Y_1$ and $Y_2$ seem to be quite clearly correlated, implying that a multivariate multiple regression approach may be worthwhile.
 
 ```{r}
 #| echo: false
 #| fig-cap: "Scatter plots of the variables in the amitriptyline overdose dataset"
 #| label: fig-scatter
 #| fig-pos: "H"
+#| results: 'hide'
+library(knitr)
+library(kableExtra)
 data.df <- read.table("ami.data.txt")
 names <- c("Y1","Y2","Z1","Z2","Z3","Z4","Z5")
 colnames(data.df) <- names
@@ -32,34 +35,138 @@ pairs(data.df)
 
 ## 2)
 
-To begin with, we perform a univariate regression of $Y_1$ on $Z_1-Z_5$.
+To begin with, we perform a univariate regression of $Y_1$ on $Z_1-Z_5$. @tbl-mod-1 and [-@tbl-mod1-metrics], below, displays the estimated coefficients and diagnostics for this model. We observe that all coefficients except for $\hat\beta_5$, are statistically different from 0, at siginficiance level of $\alpha=0.05$. The R-squared is also rather high at $0.88$.
 
 ```{r}
-model.Y1 <- lm (Y1 ~ Z1 + Z2 + Z3 +Z4 + Z5, data = data.df)
-summary(model.Y1)
+#| echo: false
+#| label: tbl-mod-1
+#| tbl-cap: "Regression coefficients for model Y1"
+model.Y1 <- lm(Y1 ~ Z1 + Z2 + Z3 + Z4 + Z5, data = data.df)
+s <- summary(model.Y1)
 
-res.Y1 <- resid(model.Y1)
-plot(res.Y1)
+# Extract coefficients
+coef_table <- s$coefficients
+kable(coef_table)
+
+```
+
+```{r}
+#| echo: false
+#| label: tbl-mod1-metrics
+#| tbl-cap: "Regression coefficients for model Y1"
+# Optional: show other summary metrics
+summary_metrics <- data.frame(
+  Metric = c("Residual Std. Error", "R-squared", "Adjusted R-squared", "F-statistic"),
+  Value = c(s$sigma, s$r.squared, s$adj.r.squared, s$fstatistic[1])
+)
+kable(summary_metrics)
 
 
+```
+
+@fig-mod1-diag, below, illustrates residual diagnostic plots for the model. The Q-Q plot indicate that the residuals are approximately normally distributed. The Residual vs Leverage plot also looks acceptable altso there are a few influential observations that may be worth while to further investigate. However, the Residuals vs Fitted and the Scale-Location plots show indications of heteroscedasticity in the residuals.
+
+```{r}
+#| echo: false
+#| label: fig-mod1-diag
+#| fig-cap: "Diagnostic plots for model Y1"
+#| fig-pos: "H"
+#| fig-width: 8
+#| fig-height: 8
+# Base R diagnostic plots
+par(mfrow = c(2, 2))  # Arrange 4 plots in 2x2 grid
+plot(model.Y1)
+par(mfrow = c(1,1))   # Reset to single plot
+```
+
+We also constructed a prediction interval for a new observation $z=(1, 1250, 150, 70, 85)^\top$. The resulting prediction and the interval boundaries are illustrated in @tbl-mod1-predint, below.
+
+```{r}
+#| echo: false
+#| label: tbl-mod1-predint
+#| tbl-cap: "95% Prediction Interval for new observation"
 new.df        <- data.frame(Z1 =1, Z2 = 1250, Z3 = 150, Z4 = 70, Z5 = 85)
 prediction.Y1 <- predict(model.Y1, new.df,interval = "prediction", level = 0.95)
-prediction.Y1
+kable(prediction.Y1)
 ```
 
 ## 3)
 
+Having fitted a single multiple regression model, we moved on to jointly regress $Y_1$ and $Y_2$ on the covariates. The resuling covariates are displayed in @tbl-mod-coef, below. Observe that the estimates for $Y_1$ are the same as for the univariate multiple regression model. We also notice that the number of significant coefficients in the model for $Y_2$ are fewer compared to $Y_1$, but the estimates themselevs are quite similiar for all but $Z_5$
+
 ```{r}
-library(car)
-model <- lm(cbind(Y1, Y2) ~ Z1 + Z2 + Z3 +Z4 + Z5, data = data.df)
-summary(model)
+#| echo: false
+#| label: tbl-mod-coef
+#| tbl-cap: "Regression coefficients for model Y1 and Y2"
 
-Manova(model)
+library(dplyr)
+library(kableExtra)
 
-prediction <- predict(model, new.df)    
+# Fit multivariate regression
+model <- lm(cbind(Y1, Y2) ~ Z1 + Z2 + Z3 + Z4 + Z5, data = data.df)
+s2 <- summary(model)
+
+coef_Y1 <- s2$`Response Y1`$coefficients
+coef_Y2 <- s2$`Response Y2`$coefficients
+
+# Convert to data frames (row names as Term column)
+coef_Y1_df <- data.frame(Term = rownames(coef_Y1), coef_Y1, row.names = NULL)
+coef_Y2_df <- data.frame(Term = rownames(coef_Y2), coef_Y2, row.names = NULL)
+
+coef_Y1_df$Term <- gsub("\\(|\\)", "", coef_Y1_df$Term)
+coef_Y2_df$Term <- gsub("\\(|\\)", "", coef_Y2_df$Term)
+
+# Combine side by side including t-values and p-values
+coef_combined <- data.frame(
+  Term    = coef_Y1_df$Term,
+  Y1_Est  = round(coef_Y1_df$Estimate, 2),
+  Y1_SE   = round(coef_Y1_df$Std..Error, 2),
+  Y1_t    = round(coef_Y1_df$t.value, 3),
+  Y1_p    = signif(coef_Y1_df$Pr...t.., 3),
+  Y2_Est  = round(coef_Y2_df$Estimate, 2),
+  Y2_SE   = round(coef_Y2_df$Std..Error, 2),
+  Y2_t    = round(coef_Y2_df$t.value, 3),
+  Y2_p    = signif(coef_Y2_df$Pr...t.., 3)
+)
+
+# Render table
+
+
+kable(coef_combined, escape = TRUE) %>%
+  kable_styling(latex_options = "hold_position", full_width = FALSE)
 ```
 
+The output shows the MANOVA tableau for the multivariate model. The results indicate that $Z_1$ and $Z_2$ have significant effects on the dependent variables , suggesting they should be included in the model. The other predictors did not show a significant multivariate effect.
+
 ```{r}
+#| warning: false
+#| message=FALSE
+library(car)
+Manova(model)
+```
+
+We will now construct a 95% prediction ellipse for the new observation in the multivariate model. Howver, first, we will calculate the prediction interval for for $Y_2$ alone in order to compare the ellipse to both of the univariate intervals. @tbl-mod2-predint, below plots this prediction interval.
+
+```{r}
+#| echo: false
+#| label: tbl-mod2-predint
+#| tbl-cap: "95% Prediction Interval for Y2 of new observation"
+model.Y2 <- lm(Y2 ~ Z1 + Z2 + Z3 + Z4 + Z5, data = data.df)
+
+prediction.Y2 <- predict(model.Y2, new.df,interval = "prediction", level = 0.95)
+kable(prediction.Y1)
+```
+
+We now move on to constructing the prediction ellipse for $(Y_1,Y_2)$. The resulting ellipse is illustrated in @fig-pred-ell. We observe that the prediction itself corresponds to the univariate predictions, which is expected, given that the regression coefficients are the same in the multivariate model.
+
+However, we immediately notice that the extreme points of the ellipse along the $Y_1$ and $Y_2$ axes do not correspond to the boundaries of the respective univariate prediction intervals. The confidence ellipse accounts for the correlation between the outputs, which in this case is very strong ($r=0.976$). As a result, the ellipse is much more constrained than the rectangular region that would correspond to the univariate intervals. This is clearly visible in the ellipse: regions where one variable is large while the other is small are not included, reflecting the strong positive correlation between $Y_1$ and $Y_2$.
+
+```{r}
+#| echo: false
+#| fig-cap: "95% prediction ellipse for (Y1, Y2)"
+#| label: fig-pred-ell
+#| fig-pos: "H"
+prediction <- predict(model, new.df) 
 confidenceEllipse <- function(mod, newdata, level = 0.95, ggplot = TRUE){
   # labels
   lev_lbl <- paste0(level * 100, "%")
@@ -118,442 +225,248 @@ confidenceEllipse(mod = model, newdata = new.df)
 
 # Part 2: James–Stein estimator
 
+In this part we will work with the James-Stein (JS) estimator, using a dataset of genes. We will begin by standardizing the gene expressions.
+
+## 1)
+
 ```{r}
+#| echo: false
 load("Lab3.Rdata")
 dim(xx) #genes are on columns
 m1 <- apply(xx,2,'mean')
 xx1 <- scale(xx) 
 
-hist(m1, main = "Histogram of Column Means", xlab = "Means", col = "lightblue")
-xx1 <- scale(xx)          #Standardize the data
-xx1 <- sweep(xx1,2,m1,'+')#Add the column means back to the standardized data
-m1  <- apply(xx1,2,'mean')
-hist(m1) 
-n   <- dim(xx1)[1]
-p   <- dim(xx1)[2]
+xx1 <- sweep(xx1, 2, m1, '+') # Add column means back
+m2 <- apply(xx1, 2, mean)
 
-# (b) ----
-xx1 <- xx1-10
-m1  <- apply(xx1,2,'mean')
-hist(m1) 
+xx1 <- xx1 - 10
+m3 <- apply(xx1, 2, mean)
+
+
 ```
 
+@fig-hist-m1, below illustrates the histogram of the average gene expressions before and after standardization.The distribution is persevered even after standardizing.
+
 ```{r}
+#| echo: false
+#| fig-cap: "Histogram of average gene expressions before and after standardization"
+#| label: fig-hist-m1
+#| fig-pos: "H"
+# Plot all three histograms in one row
+par(mfrow = c(1,3))  # 1 row, 3 columns
+
+hist(m1, main = "Histogram of Column Means", xlab = "Means", col = "lightblue")
+hist(m2, main = "After Standardization + Col. Means", xlab = "Means", col = "lightgreen")
+hist(m3, main = "After Subtracting 10", xlab = "Means", col = "lightpink")
+
+par(mfrow = c(1,1))  # Reset layout
+```
+
+## 2)
+
+We will now use the first 5 individuals to estimate the mean vector of the standardized expressions. We will compare the MLE against two JS estimators: JS shrinkage towards zero and JS shrinkage twoards the grand mean. The formulas for these are defined as follows:
+
+$$
+\hat\mu_{JS}=\left(1-\frac{(p-2)\sigma^2}{\|\mathbf Y\|^2}\right)
+$$
+
+where
+
+$$
+\hat\mu_{JS_{gmean}}=(1-d)\mathbf Y+d\bar{\mathbf Y}
+$$
+
+where
+
+$$
+d=\frac{p-3}{(p-1)n\sigma^2}
+$$
+
+If $\sigma^2$ is unknown we typically use the MLE estimate of variance. In this case we are attempting to estimate a mean vector so the estimator is the variance of the sample mean (mle). @tbl-sq-error, below illustrates the squared errors for the three estimators. We see that both of the JS estimators perform better than the MLE, with shrinkage twoardsa the grand mean perforeming the best.
+
+```{r}
+#| label: tbl-sq-error
+#| echo: false
+#| caption: "Squared Errors of the Three Estimators"
 X1  <- xx1[1:5,] 
 X2  <- xx1[6:n,]
 
 mle   <- apply(X1,2,'mean') #MLE from first 5 rows
 tmean <- apply(X2,2,'mean') #Test mean from remaining rows
-
-plot(tmean ~ mle)
-abline(a=0,b=1)
-sum((tmean-mle)^2)
-
-
 JS1 <- (1-(p-2)/sum((mle^2))/5)*mle
-points(tmean ~ JS1, col='red')
-sum((tmean-JS1)^2)
-
 d   <- (p-3)/(p-1)/5/var(mle)
 JS2 <-(1-d)*mle+d*mean(mle)
 
-points(tmean~JS2, col='green')
-sum((tmean-JS2)^2)
+
+SE_MLE  <- sum((tmean - mle)^2)
+SE_JS1  <- sum((tmean - JS1)^2)
+SE_JS2  <- sum((tmean - JS2)^2)
+
+# Create a table
+sq_error_table <- data.frame(
+  Estimator = c("MLE", "JS1 (toward 0)", "JS2 (toward mean)"),
+  Squared_Error = c(SE_MLE, SE_JS1, SE_JS2)
+)
+
+# Print as kable
+kable(sq_error_table) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+@fig-est-scatter, below, plots the estimators against the true mean. The figure is quiote crowded so its difficuolt to discern all patterns, but the JS estimators seem to perform betteer in several of the regions where the MLE performs the most badly, such as for the largest means. It is however not really possible to see any apparent differences between the two JS estimators.
+
+```{r}
+#| echo: false
+#| fig-cap: "Scatter plot of the three estimators against the mean"
+#| label: fig-est-scatter
+#| fig-pos: "H"
+# Base plot for MLE (black circle outline)
+plot(tmean ~ mle, xlab="Estimator", ylab="True Mean", main="Estimator vs True Mean",
+     pch=1, col='#000000', cex=1.3, lwd=2)  # larger size and thicker outline
+abline(a=0, b=1, lty=2)
+
+# JS1 points (triangle outline, vivid orange)
+points(tmean ~ JS1, col='#E69F00', pch=2, cex=1.3, lwd=2)
+
+# JS2 points (square outline, vivid blue)
+points(tmean ~ JS2, col='#56B4E9', pch=0, cex=1.3, lwd=2)
+
+# Legend with matching shapes and colors
+legend("topleft", legend=c("MLE","JS1 (toward 0)","JS2 (toward mean)"),
+       col=c('#000000','#E69F00','#56B4E9'), pch=c(1,2,0), pt.cex=1.3, pt.lwd=2)
+```
+
+We now repeat the process but instead of 5, using sample sizes of 10, 20 and 40. @tbl-sq-error-diff, below, describes the resulting squared errors. We see that as we increase the sample size the gain that the JS estimators has over the MLE diminishes, and the MSE turns more and more similiar. This is natural as the shrinkage factor will appraoch 1 as n increases, and the JS estimator will thus appraoch the MLE. Furthermore, the JS shrinkage is most useful when the MLE has high variance, which will be the case when the sample is small. When we increase the sample size the variance decreases and we thus do not gain anythingfor allowing some bias.
+
+```{r}
+#| label: tbl-sq-error-diff
+#| echo: false
+#| caption: "Squared Errors of the Three Estimators for Different Sample Sizes"
+# Define number of individuals to use for estimating the mean
+n_indivs <- c(10, 20, 40)
+
+# Prepare empty list to store squared errors
+sq_error_list <- list()
+
+for(n_use in n_indivs){
+  
+  X1  <- xx1[1:n_use,] 
+  X2  <- xx1[(n_use+1):n,]
+  
+  mle   <- apply(X1,2,'mean')  # MLE from first n_use rows
+  tmean <- apply(X2,2,'mean')  # True mean from remaining rows
+  
+  # JS1 (toward 0)
+  JS1 <- (1-(p-2)/sum(mle^2)/n_use)*mle
+  
+  # JS2 (toward grand mean)
+  d   <- (p-3)/(p-1)/n_use/var(mle)
+  JS2 <- (1-d)*mle + d*mean(mle)
+  
+  # Squared errors
+  SE_MLE  <- sum((tmean - mle)^2)
+  SE_JS1  <- sum((tmean - JS1)^2)
+  SE_JS2  <- sum((tmean - JS2)^2)
+  
+  # Store in a dataframe with n_use
+  sq_error_list[[as.character(n_use)]] <- data.frame(
+    N_Individuals = n_use,
+    Estimator = c("MLE", "JS1 (toward 0)", "JS2 (toward mean)"),
+    Squared_Error = c(SE_MLE, SE_JS1, SE_JS2)
+  )
+}
+
+# Combine all into one table
+sq_error_table <- do.call(rbind, sq_error_list)
+
+# Print table
+kable(sq_error_table) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+@fig-est-scatter-diff, below, illustrates the estimates for different sample sizes. The same effect is clearly visible here.
+
+```{r}
+#| echo: false
+#| fig-cap: "Scatter plots of the three estimators against the mean for different sample sizes"
+#| label: fig-est-scatter-diff
+#| fig-pos: "H"
+# Define number of individuals (excluding 5)
+n_indivs <- c(10, 20, 40)
+
+# Set up plotting area (2x2 grid; last cell will be empty)
+par(mfrow=c(2,2), mar=c(4,4,3,1))
+
+for(n_use in n_indivs){
+  
+  X1  <- xx1[1:n_use,] 
+  X2  <- xx1[(n_use+1):n,]
+  
+  mle   <- apply(X1,2,'mean')  # MLE from first n_use rows
+  tmean <- apply(X2,2,'mean')  # True mean from remaining rows
+  
+  # JS1 (toward 0)
+  JS1 <- (1-(p-2)/sum(mle^2)/n_use)*mle
+  
+  # JS2 (toward grand mean)
+  d   <- (p-3)/(p-1)/n_use/var(mle)
+  JS2 <- (1-d)*mle + d*mean(mle)
+  
+  # Base plot for MLE
+  plot(tmean ~ mle, xlab="Estimator", ylab="True Mean", 
+       main=paste(n_use, "Individuals"), pch=1, col='#000000', cex=1.2, lwd=2)
+  abline(a=0, b=1, lty=2)
+  
+  # JS1 points (triangle outline, orange)
+  points(tmean ~ JS1, col='#E69F00', pch=2, cex=1.2, lwd=2)
+  
+  # JS2 points (square outline, blue)
+  points(tmean ~ JS2, col='#56B4E9', pch=0, cex=1.2, lwd=2)
+  
+  # Add legend only to first plot in the grid
+  if(n_use == 10){
+    legend("topleft", legend=c("MLE","JS1 (toward 0)","JS2 (toward mean)"),
+           col=c('#000000','#E69F00','#56B4E9'), pch=c(1,2,0), pt.cex=1.2, pt.lwd=2)
+  }
+}
+
+# Reset plotting parameters to default
+par(mfrow=c(1,1))
 
 ```
 
 # Part 3: Simulation study: model selection
 
-```{r}
-rm(list = ls())
-set.seed(500)
+In this last part we will do a simulation study on model selection. The model consists of a design matrix $Z$ of dimension $1000\times950$ with iid entries $N(0,1/1000)$. We then generate a response vector according to the linear model
 
-# --------------------------
-# Parameters
-# --------------------------
-n <- 1000
-p <- 950
-klist <- c(2, 5, 10, 100, 500, 950)
-rep1 <- 50
+$$
+Y=Z\beta+\epsilon,\;\;\epsilon\sim(0,I_{1000})
+$$
 
-# --------------------------
-# Allocate matrices
-# --------------------------
-PE    <- matrix(0, rep1, length(klist))
-PRED1 <- matrix(0, rep1, length(klist))
-PRED2 <- matrix(0, rep1, length(klist))
-PRED3 <- matrix(0, rep1, length(klist))
+with $\beta=(3,3,3,3,3,0,\dots,0)^\top$. We will then estimate linear regression models of the following model orders:
 
-# --------------------------
-# True data
-# --------------------------
-beta <- c(rep(3, 5), rep(0, p - 5))
-Z    <- matrix(rnorm(n * p, 0, 1 / sqrt(n)), nrow = n)
-mu   <- Z %*% beta
+-   the first 2 variables
 
-# --------------------------
-# Precompute matrices that do not depend on Y
-# --------------------------
-ZTZ_list <- vector("list", length(klist))
-invZTZ  <- vector("list", length(klist))
-Zt_list <- vector("list", length(klist))
-hdiag   <- vector("list", length(klist))
+-   the first 5 variables
 
-for (i in seq_along(klist)) {
-  k   <- klist[i]
-  Zk  <- Z[, 1:k, drop = FALSE]
-  ZtZ <- crossprod(Zk)
-  inv <- solve(ZtZ)
-  
-  ZTZ_list[[i]] <- ZtZ        # Gram matrix
-  invZTZ[[i]]   <- inv        # inverse of Gram
-  Zt_list[[i]]  <- t(Zk)      # transpose
-  
-  # diagonal of projection matrix H = Zk %*% inv %*% t(Zk)
-  hdiag[[i]] <- rowSums((Zk %*% inv) * Zk)
-}
+-   the first 10 variables
 
-# --------------------------
-# Simulation loop
-# --------------------------
-for (j in 1:rep1) {
-  
-  # Generate new noise and response
-  epsilon <- rnorm(n)
-  Y       <- mu + epsilon
-  
-  # Loop over different k
-  for (i in seq_along(klist)) {
-    k   <- klist[i]
-    Zk  <- Z[, 1:k, drop = FALSE]
-    Zt  <- Zt_list[[i]]
-    inv <- invZTZ[[i]]
-    
-    # Compute beta_hat and mu_hat efficiently
-    betahat <- solve(ZTZ_list[[i]], Zt %*% Y)
-    muhat   <- Zk %*% betahat
-    
-    # Residual sum of squares
-    RSS <- sum((Y - muhat)^2)
-    
-    # Compute metrics
-    PE[j, i]    <- sum((muhat - mu)^2) + n
-    PRED1[j, i] <- RSS + 2 * k
-    PRED2[j, i] <- RSS * (1 + 2 * k / (n - k))
-    
-    # Leave-one-out residuals
-    res1        <- (Y - muhat) / (1 - hdiag[[i]])
-    PRED3[j, i] <- sum(res1^2)
-  }
-}
+-   the first 100 variables
 
-# --------------------------
-# Optional: Check results
-# --------------------------
-PE
-PRED1
-PRED2
-PRED3
+-   the first 500 variables
 
+-   all 950 variables
 
-boxplot(PE) 
-boxplot(PE-PE[,2])
-length(which(PE-PE[,2]<0))
-boxplot(PE[,1:3]-PE[,2])
-boxplot(PRED1-PRED1[,2])
-length(which(PRED1-PRED1[,2]<0))
+And compare the resulting models with each other as well as which ones are selected based on AIC and BIC.
 
-boxplot(PRED1[,1:3]-PRED1[,2])
-boxplot(PRED2-PRED2[,2])
-length(which(PRED2-PRED2[,2]<0))
-
-boxplot(PRED2[,1:3]-PRED2[,2])
-boxplot(PRED3-PRED3[,2])
-boxplot(PRED3[,1:3]-PRED3[,2])
-length(which(PRED3-PRED3[,2]<0))
-
-
-boxplot(PRED1-PE)
-boxplot(PRED2-PE)
-boxplot(PRED2[,1:5]-PE[,1:5])
-boxplot(PRED3[,1:5]-PE[,1:5])
-```
-
-Zn%\*%betahat
+To begin we will do this on one single replicate. @tbl-pe, bellow, plots the conditional expected prediction error (given $\hat\beta$), against estimates of the prediction error using RSS (with known vs unknown $\sigma^2$), as well as with leave-one-out-cross-validation (LOOCV). We observe that all PE estimates would pick the true model ifn solely using that as criterium. We also see that the prediction error estimated with known $\sigma^2$ performed the best, and poerforms relatively well for all $k$. However, usually we do not know the true $\sigma^2$. When it comes to the two other methods it is slightly more complicated. For the lower values of $k$ the LOOC estimator performs better, however the difference is still relatively small. On the other hand for the larger values of $k$ performes much worse, particularly in the case of $k=950$
 
 ```{r}
-rm(list = ls())
-
-n <- 1000
-p <- 950
-PE<- rep(0,6)
-PRED1 <- rep(0,6)
-PRED2 <- rep(0,6)
-PRED3 <- rep(0,6)
-
-Z <- matrix(rnorm(n*p,0,1/sqrt(n)),nrow=n)
-
-beta      <-rep(0,p) 
-beta[1:5] <-3
-
-mu      <- Z %*% beta
-epsilon <- rnorm(n)
-
-Y       <- mu + epsilon
-
-i <- 1
-
-for (k in c(2,5,10,100,500,950))
-{  
-  Zn <- Z[,1:k]
-  M1 <- solve(t(Zn)%*%Zn)%*%t(Zn)
-  M2 <- Zn%*%M1
-  betahat <- M1%*%Y
-  muhat   <- Zn%*%betahat
-  PE[i]   <- sum((muhat-mu)^2) + n
-  RSS     <- sum((muhat-Y)^2)
-  PRED1[i]<- RSS + 2*k
-  PRED2[i]<- RSS*(1 + 2*k/(n-k)) 
-  res1    <- (Y-muhat)/(1-diag(M2))
-  PRED3[i]<- sum(res1^2)
-  i = i+1
-} 
-
-
-###50 replicates
-
-rep1 <- 100
-
-
-PE   <- matrix(rep(0,6*rep1),nrow=rep1)
-PRED1<- matrix(rep(0,6*rep1),nrow=rep1)
-PRED2<- matrix(rep(0,6*rep1),nrow=rep1)
-PRED3<- matrix(rep(0,6*rep1),nrow=rep1)
-beta <- rep(0,p)
-beta[1:5]<-3
-Z    <- matrix(rnorm(n*p,0,1/sqrt(n)),nrow=n)
-mu   <- Z%*%beta
-
-
-for (j in 1:rep1)
-  
-{
-  
-  epsilon <-rnorm(n)
-  
-  Y  <- mu+epsilon
-  
-  i=1
-  
-  for (k in c(2,5,10,100,500,950))
-  {  
-    Zn <- Z[,1:k];
-    M1 <- solve(t(Zn)%*%Zn)%*%t(Zn)
-    M2 <- Zn%*%M1
-    betahat <- M1%*%Y
-    muhat   <- Zn%*%betahat
-    PE[j,i] <- sum((muhat-mu)^2)+n
-    RSS     <- sum((muhat-Y)^2)
-    PRED1[j,i]<- RSS + 2*k
-    PRED2[j,i]<- RSS*(1+2*k/(n-k))
-    res1      <- (Y-muhat)/(1-diag(M2))
-    PRED3[j,i]<- sum(res1^2)
-    i=i+1
-  } 
-}   
-
-boxplot(PE) 
-boxplot(PE-PE[,2])
-length(which(PE-PE[,2]<0))
-boxplot(PE[,1:3]-PE[,2])
-boxplot(PRED1-PRED1[,2])
-length(which(PRED1-PRED1[,2]<0))
-
-boxplot(PRED1[,1:3]-PRED1[,2])
-boxplot(PRED2-PRED2[,2])
-length(which(PRED2-PRED2[,2]<0))
-
-boxplot(PRED2[,1:3]-PRED2[,2])
-boxplot(PRED3-PRED3[,2])
-boxplot(PRED3[,1:3]-PRED3[,2])
-length(which(PRED3-PRED3[,2]<0))
-
-
-boxplot(PRED1-PE)
-boxplot(PRED2-PE)
-boxplot(PRED2[,1:5]-PE[,1:5])
-boxplot(PRED3[,1:5]-PE[,1:5])
-```
-
-```{r}
-rm(list = ls())
-
-n <- 1000
-p <- 950
-PE<- rep(0,6)
-PRED1 <- rep(0,6)
-PRED2 <- rep(0,6)
-PRED3 <- rep(0,6)
-
-Z <- matrix(rnorm(n*p,0,1/sqrt(n)),nrow=n)
-
-beta      <-rep(0,p) 
-beta[1:5] <-3
-
-mu      <- Z %*% beta
-epsilon <- rnorm(n)
-
-Y       <- mu + epsilon
-
-i <- 1
-
-for (k in c(2,5,10,100,500,950))
-{  
-  Zn <- Z[,1:k]
-  M1 <- solve(t(Zn)%*%Zn)%*%t(Zn)
-  M2 <- Zn%*%M1
-  betahat <- M1%*%Y
-  muhat   <- Zn%*%betahat
-  PE[i]   <- sum((muhat-mu)^2) + n
-  RSS     <- sum((muhat-Y)^2)
-  PRED1[i]<- RSS + 2*k
-  PRED2[i]<- RSS*(1 + 2*k/(n-k)) 
-  res1    <- (Y-muhat)/(1-diag(M2))
-  PRED3[i]<- sum(res1^2)
-  i = i+1
-} 
-```
-
-```{r}
-rm(list = ls())
-
-n <- 1000
-p <- 950
-PE<- rep(0,6)
-PRED1 <- rep(0,6)
-PRED2 <- rep(0,6)
-PRED3 <- rep(0,6)
-
-Z <- matrix(rnorm(n*p,0,1/sqrt(n)),nrow=n)
-
-beta      <-rep(0,p) 
-beta[1:5] <-3
-
-mu      <- Z %*% beta
-epsilon <- rnorm(n)
-
-Y       <- mu + epsilon
-
-i <- 1
-
-for (k in c(2,5,10,100,500,950))
-{  
-  Zn <- Z[,1:k]
-  M1 <- solve(t(Zn)%*%Zn)%*%t(Zn)
-  M2 <- Zn%*%M1
-  betahat <- M1%*%Y
-  muhat   <- Zn%*%betahat
-  PE[i]   <- sum((muhat-mu)^2) + n
-  RSS     <- sum((muhat-Y)^2)
-  PRED1[i]<- RSS + 2*k
-  PRED2[i]<- RSS*(1 + 2*k/(n-k)) 
-  res1    <- (Y-muhat)/(1-diag(M2))
-  PRED3[i]<- sum(res1^2)
-  i = i+1
-} 
-```
-
-```{r}
-rm(list = ls())
-
-n <- 1000
-p <- 950
-rep1 <- 100
-k_values <- c(2,5,10,100,500,950)
-nk <- length(k_values)
-
-# Preallocate matrices
-PE <- matrix(0, nrow=rep1, ncol=nk)
-PRED1 <- matrix(0, nrow=rep1, ncol=nk)
-PRED2 <- matrix(0, nrow=rep1, ncol=nk)
-PRED3 <- matrix(0, nrow=rep1, ncol=nk)
-
-# True beta and mean
-beta <- rep(0,p)
-beta[1:5] <- 3
-Z <- matrix(rnorm(n*p,0,1/sqrt(n)), nrow=n)
-mu <- Z %*% beta
-
-# recompute inverses and hat diagonals for each k
-XtX_inv_list <- vector("list", nk)
-H_diag_list <- vector("list", nk)
-
-for (i in seq_along(k_values)) {
-  k <- k_values[i]
-  Zn <- Z[, 1:k]
-  
-  XtX_inv <- solve(crossprod(Zn))          # (Zn' Zn)^{-1}
-  XtX_inv_list[[i]] <- XtX_inv
-  
-  # Precompute diagonal of hat matrix for LOOCV
-  H_diag_list[[i]] <- rowSums((Zn %*% XtX_inv) * Zn)
-}
-
-# Main loop over repetitions
-for (j in 1:rep1) {
-  
-  epsilon <- rnorm(n)
-  Y <- mu + epsilon
-  
-  for (i in seq_along(k_values)) {
-    k <- k_values[i]
-    Zn <- Z[, 1:k]
-    XtX_inv <- XtX_inv_list[[i]]
-    h <- H_diag_list[[i]]
-    
-    # Least squares
-    betahat <- XtX_inv %*% crossprod(Zn, Y)
-    muhat <- Zn %*% betahat
-    
-    # Conditional PE
-    PE[j,i] <- sum((muhat - mu)^2) + n
-    
-    # RSS
-    RSS <- sum((Y - muhat)^2)
-    
-    # Prediction estimates
-    PRED1[j,i] <- RSS + 2*k             # sigma^2 = 1
-    PRED2[j,i] <- RSS * (1 + 2*k/(n-k)) # estimated sigma^2
-    
-    # LOOCV PE
-    res1 <- (Y - muhat) / (1 - h)
-    PRED3[j,i] <- sum(res1^2)
-  }
-}
-boxplot(PE) 
-boxplot(PE-PE[,2])
-length(which(PE-PE[,2]<0))
-boxplot(PE[,1:3]-PE[,2])
-boxplot(PRED1-PRED1[,2])
-length(which(PRED1-PRED1[,2]<0))
-
-boxplot(PRED1[,1:3]-PRED1[,2])
-boxplot(PRED2-PRED2[,2])
-length(which(PRED2-PRED2[,2]<0))
-
-boxplot(PRED2[,1:3]-PRED2[,2])
-boxplot(PRED3-PRED3[,2])
-boxplot(PRED3[,1:3]-PRED3[,2])
-length(which(PRED3-PRED3[,2]<0))
-
-
-boxplot(PRED1-PE)
-boxplot(PRED2-PE)
-boxplot(PRED2[,1:5]-PE[,1:5])
-boxplot(PRED3[,1:5]-PE[,1:5])
-```
-
-```{r}
+#| echo: false
+#| tbl-cap: "Comparison of True PE and Estimated Prediction Errors"
+#| label: tbl-pe
+set.seed(2025)
 rm(list = ls())
 
 library(knitr)
@@ -613,7 +526,7 @@ for (k in k_values) {
 # -----------------------------
 # AIC and BIC for single replicate
 # -----------------------------
-set.seed(2025)
+
 epsilon_single <- rnorm(n)
 Y_single <- mu + epsilon_single
 
@@ -634,14 +547,68 @@ for (k in k_values) {
   i <- i + 1
 }
 
+# Differences between estimated PE and true PE
+Diff_PRED1 <- PRED1 - PE
+Diff_PRED2 <- PRED2 - PE
+Diff_PRED3 <- PRED3 - PE
+
+# Identify the selected model for each criterion
+k_min_PRED1 <- k_values[which.min(PRED1)]
+k_min_PRED2 <- k_values[which.min(PRED2)]
+k_min_PRED3 <- k_values[which.min(PRED3)]
+k_min_PE    <- k_values[which.min(PE)]
+
+# Display results
+cat("Comparison of model selection:\n")
+cat("PRED1 (Cp-style) selects k =", k_min_PRED1, "\n")
+cat("PRED2 (Adjusted RSS) selects k =", k_min_PRED2, "\n")
+cat("PRED3 (LOOCV) selects k =", k_min_PRED3, "\n")
+cat("True PE selects k =", k_min_PE, "\n\n")
+
+# Tabulate all results
+PE_comparison <- data.frame(
+  k = k_values,
+  True_PE = PE,
+  PRED1 = PRED1,
+  PRED2 = PRED2,
+  PRED3 = PRED3,
+  Diff_PRED1 = Diff_PRED1,
+  Diff_PRED2 = Diff_PRED2,
+  Diff_PRED3 = Diff_PRED3
+)
+
+library(knitr)
+kable(PE_comparison, digits=2)
+
+
+```
+
+@tbl-aic-bic, below, illustrates the AIC and BIC for each model. We see that the BIC criterion results in the correct model order being chosen, while AIC selects the model with $k=950$. The reason for this is that RSS will never increase when adding more predictors to the model. When many predictors are added, RSS becomes very small, and the log-likelihood term in AIC dominates the penalty term. Because AIC has a relatively weak penalty (2k), it favors the largest model even though many predictors are unnecessary. BIC, on the other hand, uses a stronger penalty that grows with $\log(n)$, which prevents it from overfitting and correctly identifies the true model order.
+
+```{r}
+#| echo: false
+#| tbl-cap: "AIC and BIC values for each model"
+#| label: tbl-aic-bic
 AIC_choice <- k_values[which.min(AIC_vals)]
 BIC_choice <- k_values[which.min(BIC_vals)]
+
+AIC_BIC_table <- data.frame(
+  k = k_values,
+  AIC = AIC_vals,
+  BIC = BIC_vals
+)
+
+kable(AIC_BIC_table, digits = 2)
 
 cat("Single replicate results:\n")
 cat("AIC values:", AIC_vals, "\n")
 cat("BIC values:", BIC_vals, "\n")
 cat("AIC-selected model:", AIC_choice, "\n")
 cat("BIC-selected model:", BIC_choice, "\n\n")
+```
+
+```{r}
+#| echo: false
 
 # -----------------------------
 # Multi-replicate setup
@@ -709,27 +676,94 @@ for (j in 1:rep1) {
   BIC_choice_counts[which.min(BIC_vals)] <- BIC_choice_counts[which.min(BIC_vals)] + 1
 }
 
+
+```
+
+Having looked at an individual replicate we performed 100 simulations of the output vectors and looked at how the prediction errors and selection criterions behaved for the different model orders.
+
+```{r}
+boxplot(PRED1_mat - PE_mat, main="PRED1 minus PE")
+boxplot(PRED2_mat - PE_mat, main="PRED2 minus PE")
+boxplot(PRED3_mat - PE_mat, main="PRED3 minus PE")
+```
+
+```{r}
+boxplot(PE_mat, main="PE")
+boxplot(PRED1_mat, main="PRED1")
+boxplot(PRED2_mat, main="PRED2")
+boxplot(PRED3_mat, main="PRED3")
+```
+
+```{r}
+boxplot(PE_mat[,1:3], main="PE")
+boxplot(PRED1_mat[,1:4], main="PRED1")
+boxplot(PRED2_mat[,1:4], main="PRED2")
+boxplot(PRED3_mat[,1:4], main="PRED3")
+```
+
+```{r}
+#| echo: false
+#| fig-cap: "Scatter plots of the three estimators against the mean for different sample sizes"
+#| label: fig-est-scatter-diff
+#| fig-pos: "H"
 # -----------------------------
 # Boxplots for PE/PRED with titles
 # -----------------------------
-boxplot(PE_mat, main="PE over 100 replicates")
-boxplot(PE_mat - PE_mat[,2], main="PE differences relative to k=5")
-boxplot(PE_mat[,1:3] - PE_mat[,2], main="PE differences for small k models")
+# Use names=k_values to label x-axis
+boxplot(PE_mat, main="PE over 100 replicates", names = k_values, xlab="k", ylab="PE")
+boxplot(PE_mat - PE_mat[,2], main="PE differences relative to k=5", names = k_values, xlab="k", ylab="PE difference")
+boxplot(PE_mat[,1:3] - PE_mat[,2], main="PE differences for small k models", names = k_values[1:3], xlab="k", ylab="PE difference")
 
-boxplot(PRED1_mat - PRED1_mat[,2], main="PRED1 differences relative to k=5")
-boxplot(PRED1_mat[,1:3] - PRED1_mat[,2], main="PRED1 differences for small k models")
 
-boxplot(PRED2_mat - PRED2_mat[,2], main="PRED2 differences relative to k=5")
-boxplot(PRED2_mat[,1:3] - PRED2_mat[,2], main="PRED2 differences for small k models")
 
-boxplot(PRED3_mat - PRED3_mat[,2], main="PRED3 differences relative to k=5")
-boxplot(PRED3_mat[,1:3] - PRED3_mat[,2], main="PRED3 differences for small k models")
+boxplot(PRED2_mat - PRED2_mat[,2], main="PRED2 differences relative to k=5", names = k_values, xlab="k", ylab="PRED2 difference")
+boxplot(PRED2_mat[,1:3] - PE_mat[,2], main="PRED2 differences for small k models", names = k_values[1:3], xlab="k", ylab="PRED2 - PE")
 
-boxplot(PRED1_mat - PE_mat, main="PRED1 minus PE")
-boxplot(PRED2_mat - PE_mat, main="PRED2 minus PE")
-boxplot(PRED2_mat[,1:5] - PE_mat[,1:5], main="PRED2 minus PE (k=2,5,10,100,500)")
-boxplot(PRED3_mat[,1:5] - PE_mat[,1:5], main="PRED3 minus PE (k=2,5,10,100,500)")
+boxplot(PRED3_mat - PRED3_mat[,2], main="PRED3 differences relative to k=5", names = k_values, xlab="k", ylab="PRED3 difference")
+boxplot(PRED3_mat[,1:3] - PE_mat[,2], main="PRED3 differences for small k models", names = k_values[1:3], xlab="k", ylab="PRED3 - PE")
 
+boxplot(PRED1_mat - PE_mat, main="PRED1 minus PE", names = k_values, xlab="k", ylab="PRED1 - PE")
+boxplot(PRED2_mat - PE_mat, main="PRED2 minus PE", names = k_values, xlab="k", ylab="PRED2 - PE")
+boxplot(PRED2_mat[,1:5] - PE_mat[,1:5], main="PRED2 minus PE (k=2,5,10,100,500)", names = k_values[1:5], xlab="k", ylab="PRED2 - PE")
+boxplot(PRED3_mat[,1:5] - PE_mat[,1:5], main="PRED3 minus PE (k=2,5,10,100,500)", names = k_values[1:5], xlab="k", ylab="PRED3 - PE")
+boxplot(PRED3_mat - PE_mat, 
+        main="PRED3 minus PE (all models)", 
+        names = k_values, 
+        xlab = "k", 
+        ylab = "PRED3 - PE")
+
+
+```
+
+```{r}
+# For each replicate, which model has the minimal predicted error
+PRED1_best <- apply(PRED1_mat, 1, which.min)
+PRED2_best <- apply(PRED2_mat, 1, which.min)
+PRED3_best <- apply(PRED3_mat, 1, which.min)
+
+# True minimal PE
+PE_best <- apply(PE_mat, 1, which.min)
+# Logical vectors: TRUE if wrong model chosen
+wrong_PRED1 <- PRED1_best != PE_best
+wrong_PRED2 <- PRED2_best != PE_best
+wrong_PRED3 <- PRED3_best != PE_best
+
+# Number of wrong selections
+num_wrong_PRED1 <- sum(wrong_PRED1)
+num_wrong_PRED2 <- sum(wrong_PRED2)
+num_wrong_PRED3 <- sum(wrong_PRED3)
+
+cat("Number of times the wrong model is picked:\n")
+cat("PRED1:", num_wrong_PRED1, "out of", rep1, "\n")
+cat("PRED2:", num_wrong_PRED2, "out of", rep1, "\n")
+cat("PRED3:", num_wrong_PRED3, "out of", rep1, "\n")
+cat("Percentage of wrong selections:\n")
+cat("PRED1:", round(100*num_wrong_PRED1/rep1, 1), "%\n")
+cat("PRED2:", round(100*num_wrong_PRED2/rep1, 1), "%\n")
+cat("PRED3:", round(100*num_wrong_PRED3/rep1, 1), "%\n")
+```
+
+```{r}
 # -----------------------------
 # Table for AIC/BIC model selections over 100 replicates using kable
 # -----------------------------
@@ -740,7 +774,5 @@ selection_table <- data.frame(
 )
 
 kable(selection_table, caption = "Number of times each model was selected by AIC and BIC over 100 replicates")
-
-
 
 ```
