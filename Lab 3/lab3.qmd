@@ -16,7 +16,7 @@ header-includes:
 
 ## 1)
 
-We begin by analyzing the amitriptyline overdose data. @fig-scatter, below illustrates scatter plots between all the variables in the data-set. We observe that some inputs variables such as $Z_2$ and $Z_3$ show indications of being correlated with each other. We also see that that the two outputs $Y_1$ and $Y_2$ seem to be quite clearly correlated, implying that a multivariate multiple regression approach may be worthwhile.
+We begin by analyzing the amitriptyline overdose data. @fig-scatter, below, illustrates scatter plots between all the variables in the data-set. We observe that some input variables, such as $Z_2$ and $Z_3$, show indications of being correlated with each other. We also see that the two outputs, $Y_1$ and $Y_2$, seem to be clearly correlated, implying that a multivariate multiple regression approach may be worthwhile.
 
 ```{r}
 #| echo: false
@@ -35,7 +35,7 @@ pairs(data.df)
 
 ## 2)
 
-To begin with, we perform a univariate regression of $Y_1$ on $Z_1-Z_5$. @tbl-mod-1 and [-@tbl-mod1-metrics], below, displays the estimated coefficients and diagnostics for this model. We observe that all coefficients except for $\hat\beta_5$, are statistically different from 0, at siginficiance level of $\alpha=0.05$. The R-squared is also rather high at $0.88$.
+To begin with, we perform a univariate regression of $Y_1$ on $Z_1$–$Z_5$. @tbl-mod-1 and [-@tbl-mod1-metrics], below, display the estimated coefficients and diagnostics for this model. We observe that all coefficients, except for $\hat\beta_5$, are statistically different from 0 at a significance level of $\alpha = 0.05$. The R-squared is also relatively high at 0.88.
 
 ```{r}
 #| echo: false
@@ -64,7 +64,7 @@ kable(summary_metrics)
 
 ```
 
-@fig-mod1-diag, below, illustrates residual diagnostic plots for the model. The Q-Q plot indicate that the residuals are approximately normally distributed. The Residual vs Leverage plot also looks acceptable altso there are a few influential observations that may be worth while to further investigate. However, the Residuals vs Fitted and the Scale-Location plots show indications of heteroscedasticity in the residuals.
+@fig-mod1-diag, below, illustrates residual diagnostic plots for the model. The Q-Q plot indicates that the residuals are approximately normally distributed. The Residuals vs Leverage plot also looks acceptable, although there are a few influential observations that may be worth investigating further. However, the Residuals vs Fitted and Scale-Location plots show indications of heteroscedasticity in the residuals.
 
 ```{r}
 #| echo: false
@@ -79,7 +79,7 @@ plot(model.Y1)
 par(mfrow = c(1,1))   # Reset to single plot
 ```
 
-We also constructed a prediction interval for a new observation $z=(1, 1250, 150, 70, 85)^\top$. The resulting prediction and the interval boundaries are illustrated in @tbl-mod1-predint, below.
+We also constructed a prediction interval for a new observation $z = (1, 1250, 150, 70, 85)^\top$. The resulting prediction and the interval boundaries are shown in @tbl-mod1-predint, below.
 
 ```{r}
 #| echo: false
@@ -92,12 +92,14 @@ kable(prediction.Y1)
 
 ## 3)
 
-Having fitted a single multiple regression model, we moved on to jointly regress $Y_1$ and $Y_2$ on the covariates. The resuling covariates are displayed in @tbl-mod-coef, below. Observe that the estimates for $Y_1$ are the same as for the univariate multiple regression model. We also notice that the number of significant coefficients in the model for $Y_2$ are fewer compared to $Y_1$, but the estimates themselevs are quite similiar for all but $Z_5$
+Having fitted a single multiple regression model, we next jointly regress $Y_1$ and $Y_2$ on the covariates. The resulting coefficients are displayed in @tbl-mod-coef, below. Note that the estimates for $Y_1$ are the same as in the univariate multiple regression model. We also observe that the number of significant coefficients in the model for $Y_2$ is smaller compared to $Y_1$, but the estimates themselves are quite similar for all variables except $Z_5$.
 
 ```{r}
 #| echo: false
 #| label: tbl-mod-coef
 #| tbl-cap: "Regression coefficients for model Y1 and Y2"
+#| warning: false
+#| message: FALSE
 
 library(dplyr)
 library(kableExtra)
@@ -136,16 +138,16 @@ kable(coef_combined, escape = TRUE) %>%
   kable_styling(latex_options = "hold_position", full_width = FALSE)
 ```
 
-The output shows the MANOVA tableau for the multivariate model. The results indicate that $Z_1$ and $Z_2$ have significant effects on the dependent variables , suggesting they should be included in the model. The other predictors did not show a significant multivariate effect.
+The output shows the MANOVA tableau for the multivariate model. The results indicate that $Z_1$ and $Z_2$ have significant effects on the dependent variables, suggesting they should be included in the model. The other predictors did not show a significant multivariate effect.
 
 ```{r}
 #| warning: false
-#| message=FALSE
+#| message: FALSE
 library(car)
 Manova(model)
 ```
 
-We will now construct a 95% prediction ellipse for the new observation in the multivariate model. Howver, first, we will calculate the prediction interval for for $Y_2$ alone in order to compare the ellipse to both of the univariate intervals. @tbl-mod2-predint, below plots this prediction interval.
+We will now construct a 95% prediction ellipse for the new observation in the multivariate model. However, first we calculate the prediction interval for $Y_2$ alone in order to compare the ellipse with the univariate intervals. @tbl-mod2-predint, below, shows this prediction interval.
 
 ```{r}
 #| echo: false
@@ -157,10 +159,9 @@ prediction.Y2 <- predict(model.Y2, new.df,interval = "prediction", level = 0.95)
 kable(prediction.Y1)
 ```
 
-We now move on to constructing the prediction ellipse for $(Y_1,Y_2)$. The resulting ellipse is illustrated in @fig-pred-ell. We observe that the prediction itself corresponds to the univariate predictions, which is expected, given that the regression coefficients are the same in the multivariate model.
+We now move on to constructing the prediction ellipse for $(Y_1, Y_2)$. The resulting ellipse is illustrated in @fig-pred-ell. We observe that the prediction itself corresponds to the univariate predictions, which is expected since the regression coefficients are the same in the multivariate model.
 
-However, we immediately notice that the extreme points of the ellipse along the $Y_1$ and $Y_2$ axes do not correspond to the boundaries of the respective univariate prediction intervals. The confidence ellipse accounts for the correlation between the outputs, which in this case is very strong ($r=0.976$). As a result, the ellipse is much more constrained than the rectangular region that would correspond to the univariate intervals. This is clearly visible in the ellipse: regions where one variable is large while the other is small are not included, reflecting the strong positive correlation between $Y_1$ and $Y_2$.
-
+However, we immediately notice that the extreme points of the ellipse along the $Y_1$ and $Y_2$ axes do not correspond to the boundaries of the respective univariate prediction intervals. The confidence ellipse accounts for the correlation between the outputs, which in this case is very strong ($r = 0.976$). As a result, the ellipse is much more constrained than the rectangular region defined by the univariate intervals. This is clearly visible in the ellipse: regions where one variable is large while the other is small are not included, reflecting the strong positive correlation between $Y_1$ and $Y_2$.
 ```{r}
 #| echo: false
 #| fig-cap: "95% prediction ellipse for (Y1, Y2)"
@@ -225,14 +226,14 @@ confidenceEllipse(mod = model, newdata = new.df)
 
 # Part 2: James–Stein estimator
 
-In this part we will work with the James-Stein (JS) estimator, using a dataset of genes. We will begin by standardizing the gene expressions.
+In this section, we work with the James–Stein (JS) estimator using a dataset of genes. We begin by standardizing the gene expression values.
 
 ## 1)
 
 ```{r}
 #| echo: false
 load("Lab3.Rdata")
-dim(xx) #genes are on columns
+dimx <- dim(xx) #genes are on columns
 m1 <- apply(xx,2,'mean')
 xx1 <- scale(xx) 
 
@@ -244,8 +245,7 @@ m3 <- apply(xx1, 2, mean)
 
 
 ```
-
-@fig-hist-m1, below illustrates the histogram of the average gene expressions before and after standardization.The distribution is persevered even after standardizing.
+@fig-hist-m1, below, illustrates the histogram of the average gene expressions before and after standardization. The relative distribution is preserved even after standardizing.
 
 ```{r}
 #| echo: false
@@ -264,7 +264,7 @@ par(mfrow = c(1,1))  # Reset layout
 
 ## 2)
 
-We will now use the first 5 individuals to estimate the mean vector of the standardized expressions. We will compare the MLE against two JS estimators: JS shrinkage towards zero and JS shrinkage twoards the grand mean. The formulas for these are defined as follows:
+We now use the first 5 individuals to estimate the mean vector of the standardized expressions. We compare the MLE against two JS estimators: JS shrinkage toward zero and JS shrinkage toward the grand mean. The formulas for these estimators are defined as follows:
 
 $$
 \hat\mu_{JS}=\left(1-\frac{(p-2)\sigma^2}{\|\mathbf Y\|^2}\right)
@@ -282,12 +282,14 @@ $$
 d=\frac{p-3}{(p-1)n\sigma^2}
 $$
 
-If $\sigma^2$ is unknown we typically use the MLE estimate of variance. In this case we are attempting to estimate a mean vector so the estimator is the variance of the sample mean (mle). @tbl-sq-error, below illustrates the squared errors for the three estimators. We see that both of the JS estimators perform better than the MLE, with shrinkage twoardsa the grand mean perforeming the best.
+If $\sigma^2$ is unknown, we typically use the MLE estimate of the variance. In this case, we are estimating a mean vector, so the relevant estimator is the variance of the sample mean (MLE). @tbl-sq-error, below, illustrates the squared errors for the three estimators. We observe that both JS estimators perform better than the MLE, with shrinkage toward the grand mean performing the best.
 
 ```{r}
 #| label: tbl-sq-error
 #| echo: false
 #| caption: "Squared Errors of the Three Estimators"
+n <- dim(xx1)[1]   # number of individuals (rows)
+p <- dim(xx1)[2]   # number of genes (columns)
 X1  <- xx1[1:5,] 
 X2  <- xx1[6:n,]
 
@@ -309,12 +311,12 @@ sq_error_table <- data.frame(
 )
 
 # Print as kable
-kable(sq_error_table) %>%
+kable(sq_error_table, caption = "Squared Errors of the Three Estimators") %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
 
 ```
 
-@fig-est-scatter, below, plots the estimators against the true mean. The figure is quiote crowded so its difficuolt to discern all patterns, but the JS estimators seem to perform betteer in several of the regions where the MLE performs the most badly, such as for the largest means. It is however not really possible to see any apparent differences between the two JS estimators.
+@fig-est-scatter, below, plots the estimators against the true mean. The figure is quite crowded, making it difficult to discern all patterns, but the JS estimators appear to perform better in several regions where the MLE performs poorly, such as for the largest means. However, it is not easy to observe any apparent differences between the two JS estimators.
 
 ```{r}
 #| echo: false
@@ -337,12 +339,15 @@ legend("topleft", legend=c("MLE","JS1 (toward 0)","JS2 (toward mean)"),
        col=c('#000000','#E69F00','#56B4E9'), pch=c(1,2,0), pt.cex=1.3, pt.lwd=2)
 ```
 
-We now repeat the process but instead of 5, using sample sizes of 10, 20 and 40. @tbl-sq-error-diff, below, describes the resulting squared errors. We see that as we increase the sample size the gain that the JS estimators has over the MLE diminishes, and the MSE turns more and more similiar. This is natural as the shrinkage factor will appraoch 1 as n increases, and the JS estimator will thus appraoch the MLE. Furthermore, the JS shrinkage is most useful when the MLE has high variance, which will be the case when the sample is small. When we increase the sample size the variance decreases and we thus do not gain anythingfor allowing some bias.
+We now repeat the process using sample sizes of 10, 20, and 40 instead of 5. @tbl-sq-error-diff, below, shows the resulting squared errors. As the sample size increases, the advantage of the JS estimators over the MLE diminishes, and the MSEs become more similar. This is expected, as the shrinkage factor approaches 1 as $n$ increases, causing the JS estimator to converge to the MLE. Furthermore, JS shrinkage is most useful when the MLE has high variance, which occurs for small samples. As the sample size grows and the variance decreases, there is little benefit from introducing bias.
+\newpage
 
 ```{r}
 #| label: tbl-sq-error-diff
 #| echo: false
-#| caption: "Squared Errors of the Three Estimators for Different Sample Sizes"
+#| message: false
+#| warning: false
+
 # Define number of individuals to use for estimating the mean
 n_indivs <- c(10, 20, 40)
 
@@ -380,12 +385,12 @@ for(n_use in n_indivs){
 # Combine all into one table
 sq_error_table <- do.call(rbind, sq_error_list)
 
-# Print table
-kable(sq_error_table) %>%
+# Print table with caption inside kable()
+kable(sq_error_table, caption = "Squared Errors of the Three Estimators for Different Sample Sizes") %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
 ```
 
-@fig-est-scatter-diff, below, illustrates the estimates for different sample sizes. The same effect is clearly visible here.
+@fig-est-scatter-diff, below, illustrates the estimates for different sample sizes. The same effect is clearly visible in this figure.
 
 ```{r}
 #| echo: false
@@ -438,13 +443,13 @@ par(mfrow=c(1,1))
 
 # Part 3: Simulation study: model selection
 
-In this last part we will do a simulation study on model selection. The model consists of a design matrix $Z$ of dimension $1000\times950$ with iid entries $N(0,1/1000)$. We then generate a response vector according to the linear model
+In this final part, we perform a simulation study on model selection. The model uses a design matrix $Z$ of dimension $1000 \times 950$ with i.i.d. entries $N(0, 1/1000)$. We then generate a response vector according to the linear model
 
 $$
 Y=Z\beta+\epsilon,\;\;\epsilon\sim(0,I_{1000})
 $$
 
-with $\beta=(3,3,3,3,3,0,\dots,0)^\top$. We will then estimate linear regression models of the following model orders:
+with $\beta=(3,3,3,3,3,0,\dots,0)^\top$. We then estimate linear regression models of the following model orders:
 
 -   the first 2 variables
 
@@ -458,9 +463,9 @@ with $\beta=(3,3,3,3,3,0,\dots,0)^\top$. We will then estimate linear regression
 
 -   all 950 variables
 
-And compare the resulting models with each other as well as which ones are selected based on AIC and BIC.
+We compare the resulting models with each other, as well as which ones are selected based on AIC and BIC.
 
-To begin we will do this on one single replicate. @tbl-pe, bellow, plots the conditional expected prediction error (given $\hat\beta$), against estimates of the prediction error using RSS (with known vs unknown $\sigma^2$), as well as with leave-one-out-cross-validation (LOOCV). We observe that all PE estimates would pick the true model ifn solely using that as criterium. We also see that the prediction error estimated with known $\sigma^2$ performed the best, and poerforms relatively well for all $k$. However, usually we do not know the true $\sigma^2$. When it comes to the two other methods it is slightly more complicated. For the lower values of $k$ the LOOC estimator performs better, however the difference is still relatively small. On the other hand for the larger values of $k$ performes much worse, particularly in the case of $k=950$
+We begin by analyzing a single replicate. @tbl-pe, below, plots the conditional expected prediction error (given $\hat\beta$) against estimates of the prediction error using RSS (with known vs. unknown $\sigma^2$), as well as with leave-one-out cross-validation (LOOCV). We observe that all PE estimates would select the true model if used as the sole criterion. The prediction error estimated with known $\sigma^2$ performs the best and behaves relatively well for all $k$. However, in practice, the true $\sigma^2$ is usually unknown. For the other two methods, the situation is slightly more complicated: for smaller values of $k$, the LOOCV estimator often performs better, although the difference is small. For larger values of $k$, performance deteriorates, particularly for $k = 950$.
 
 ```{r}
 #| echo: false
@@ -558,12 +563,7 @@ k_min_PRED2 <- k_values[which.min(PRED2)]
 k_min_PRED3 <- k_values[which.min(PRED3)]
 k_min_PE    <- k_values[which.min(PE)]
 
-# Display results
-cat("Comparison of model selection:\n")
-cat("PRED1 (Cp-style) selects k =", k_min_PRED1, "\n")
-cat("PRED2 (Adjusted RSS) selects k =", k_min_PRED2, "\n")
-cat("PRED3 (LOOCV) selects k =", k_min_PRED3, "\n")
-cat("True PE selects k =", k_min_PE, "\n\n")
+
 
 # Tabulate all results
 PE_comparison <- data.frame(
@@ -600,11 +600,6 @@ AIC_BIC_table <- data.frame(
 
 kable(AIC_BIC_table, digits = 2)
 
-cat("Single replicate results:\n")
-cat("AIC values:", AIC_vals, "\n")
-cat("BIC values:", BIC_vals, "\n")
-cat("AIC-selected model:", AIC_choice, "\n")
-cat("BIC-selected model:", BIC_choice, "\n\n")
 ```
 
 ```{r}
@@ -679,91 +674,111 @@ for (j in 1:rep1) {
 
 ```
 
-Having looked at an individual replicate we performed 100 simulations of the output vectors and looked at how the prediction errors and selection criterions behaved for the different model orders.
-
-```{r}
-boxplot(PRED1_mat - PE_mat, main="PRED1 minus PE")
-boxplot(PRED2_mat - PE_mat, main="PRED2 minus PE")
-boxplot(PRED3_mat - PE_mat, main="PRED3 minus PE")
-```
-
-```{r}
-boxplot(PE_mat, main="PE")
-boxplot(PRED1_mat, main="PRED1")
-boxplot(PRED2_mat, main="PRED2")
-boxplot(PRED3_mat, main="PRED3")
-```
-
-```{r}
-boxplot(PE_mat[,1:3], main="PE")
-boxplot(PRED1_mat[,1:4], main="PRED1")
-boxplot(PRED2_mat[,1:4], main="PRED2")
-boxplot(PRED3_mat[,1:4], main="PRED3")
-```
+Having examined a single replicate, we then performed 100 simulations of the output vectors to study how the prediction errors and model selection criteria behave across different model orders. We first consider the differences between the estimated and true prediction errors, illustrated with boxplots in @fig-pe-diff, below. The first two estimators appear approximately unbiased for all model orders. In the case of the first estimator, which uses the true $\sigma^2$, the variance remains roughly constant across model orders, as expected since the only source of randomness is the residual. For the estimator using the estimated $\sigma^2$, the bias still appears negligible, but the variance increases substantially for higher model orders. Finally, LOOCV clearly overestimates the expected prediction error for the higher model orders and exhibits considerably more variability.
 
 ```{r}
 #| echo: false
-#| fig-cap: "Scatter plots of the three estimators against the mean for different sample sizes"
-#| label: fig-est-scatter-diff
+#| fig-cap: "Boxplots of cPE minus PE for three prediction-error estimators across model orders k."
+#| label: fig-pe-diff
 #| fig-pos: "H"
-# -----------------------------
-# Boxplots for PE/PRED with titles
-# -----------------------------
-# Use names=k_values to label x-axis
-boxplot(PE_mat, main="PE over 100 replicates", names = k_values, xlab="k", ylab="PE")
-boxplot(PE_mat - PE_mat[,2], main="PE differences relative to k=5", names = k_values, xlab="k", ylab="PE difference")
-boxplot(PE_mat[,1:3] - PE_mat[,2], main="PE differences for small k models", names = k_values[1:3], xlab="k", ylab="PE difference")
+par(mfrow = c(1,3), las = 2)  # las=2 => vertical axis labels
 
+boxplot(PRED1_mat - PE_mat,
+        main = "PRED1 − PE",
+        xlab = "Model order k",
+        ylab = "cPE − PE",
+        names = k_values)
 
+boxplot(PRED2_mat - PE_mat,
+        main = "PRED2 − PE",
+        xlab = "Model order k",
+        ylab = "cPE − PE",
+        names = k_values)
 
-boxplot(PRED2_mat - PRED2_mat[,2], main="PRED2 differences relative to k=5", names = k_values, xlab="k", ylab="PRED2 difference")
-boxplot(PRED2_mat[,1:3] - PE_mat[,2], main="PRED2 differences for small k models", names = k_values[1:3], xlab="k", ylab="PRED2 - PE")
+boxplot(PRED3_mat - PE_mat,
+        main = "PRED3 − PE",
+        xlab = "Model order k",
+        ylab = "cPE − PE",
+        names = k_values)
 
-boxplot(PRED3_mat - PRED3_mat[,2], main="PRED3 differences relative to k=5", names = k_values, xlab="k", ylab="PRED3 difference")
-boxplot(PRED3_mat[,1:3] - PE_mat[,2], main="PRED3 differences for small k models", names = k_values[1:3], xlab="k", ylab="PRED3 - PE")
+par(mfrow = c(1,1), las = 0)
+```
 
-boxplot(PRED1_mat - PE_mat, main="PRED1 minus PE", names = k_values, xlab="k", ylab="PRED1 - PE")
-boxplot(PRED2_mat - PE_mat, main="PRED2 minus PE", names = k_values, xlab="k", ylab="PRED2 - PE")
-boxplot(PRED2_mat[,1:5] - PE_mat[,1:5], main="PRED2 minus PE (k=2,5,10,100,500)", names = k_values[1:5], xlab="k", ylab="PRED2 - PE")
-boxplot(PRED3_mat[,1:5] - PE_mat[,1:5], main="PRED3 minus PE (k=2,5,10,100,500)", names = k_values[1:5], xlab="k", ylab="PRED3 - PE")
-boxplot(PRED3_mat - PE_mat, 
-        main="PRED3 minus PE (all models)", 
-        names = k_values, 
-        xlab = "k", 
-        ylab = "PRED3 - PE")
+However, since we may wish to use the estimated prediction error to select the model order, it is also of interest to examine how much it varies across different simulations. Because the prediction error is consistently much larger for higher model orders, it is most informative to focus on the distribution for the lower model orders. Boxplots for this are illustrated in @fig-pe, below. In the case of the true conditional error, there is some overlap between the distributions for model orders 5 and 10, while the expected error for model order 2 is larger, which is natural because we are not using all the available information. The expected error for $k=10$ can still be small as long as the additional coefficients beyond $k=5$ are estimated reasonably close to 0. For the estimated prediction errors, there is considerable overlap across all model orders, with $k=5$ and $k=10$ being particularly close.
 
+```{r}
+#| echo: false
+#| fig-cap: "Boxplots of true and estimated prediction errors for different model orders k; PRED1 uses true sigma2, PRED2 uses estimated sigma2, and PRED3 is LOOCV."
+#| label: fig-pe
+# Set up 2x2 plotting area
+par(mfrow = c(2,2), mar = c(4,4,3,1))  # bottom, left, top, right margins
+
+# Define k values for each subset
+k_PE    <- k_values[1:3]
+k_PRED1 <- k_values[1:4]
+k_PRED2 <- k_values[1:4]
+k_PRED3 <- k_values[1:4]
+
+# Plot PE
+boxplot(PE_mat[,1:3], names = k_PE, xlab = "Model order k", ylab = "Prediction Error", 
+        main = "PE")
+
+# Plot PRED1
+boxplot(PRED1_mat[,1:4], names = k_PRED1, xlab = "Model order k", ylab = "Estimated PE", 
+        main = "PRED1")
+
+# Plot PRED2
+boxplot(PRED2_mat[,1:4], names = k_PRED2, xlab = "Model order k", ylab = "Estimated PE", 
+        main = "PRED2")
+
+# Plot PRED3
+boxplot(PRED3_mat[,1:4], names = k_PRED3, xlab = "Model order k", ylab = "Estimated PE", 
+        main = "PRED3")
+
+# Reset plotting parameters to default
+par(mfrow = c(1,1))
 
 ```
 
+However, although there is considerable overlap between the prediction error estimates across different model orders, this does not necessarily imply a high risk of selecting the wrong model in most simulations. The reason is that the error estimates for different model orders are not independent: if one model has a particularly high or low estimate in a replicate, the other estimates are affected in a correlated way. As a result, the relative ordering of the estimates often still favors the correct model, even when the absolute values appear overlapping. We can define an incorrect decision either as choosing the model with the wrong model order or as not choosing the model with the lowest expected prediction error (which will typically be the true model, although in rare cases a different model may perform slightly better due to random fluctuations in the data). @tbl-wrong-decisions, below, illustrates that we would indeed select the wrong model far less often than the overlapping distributions suggest, but still often enough to show that using the prediction error estimate alone is not a guarantee for choosing the correct model, even in a very simple setup like ours.
+
 ```{r}
-# For each replicate, which model has the minimal predicted error
-PRED1_best <- apply(PRED1_mat, 1, which.min)
-PRED2_best <- apply(PRED2_mat, 1, which.min)
-PRED3_best <- apply(PRED3_mat, 1, which.min)
+#| echo: false
+#| tbl-cap: "Number of incorrect model selections over 100 simulations"
+#| label: tbl-wrong-decisions
 
-# True minimal PE
-PE_best <- apply(PE_mat, 1, which.min)
-# Logical vectors: TRUE if wrong model chosen
-wrong_PRED1 <- PRED1_best != PE_best
-wrong_PRED2 <- PRED2_best != PE_best
-wrong_PRED3 <- PRED3_best != PE_best
+library(knitr)
 
-# Number of wrong selections
-num_wrong_PRED1 <- sum(wrong_PRED1)
-num_wrong_PRED2 <- sum(wrong_PRED2)
-num_wrong_PRED3 <- sum(wrong_PRED3)
+# Assume true model is k = 5
+true_index <- which(k_values == 5)
 
-cat("Number of times the wrong model is picked:\n")
-cat("PRED1:", num_wrong_PRED1, "out of", rep1, "\n")
-cat("PRED2:", num_wrong_PRED2, "out of", rep1, "\n")
-cat("PRED3:", num_wrong_PRED3, "out of", rep1, "\n")
-cat("Percentage of wrong selections:\n")
-cat("PRED1:", round(100*num_wrong_PRED1/rep1, 1), "%\n")
-cat("PRED2:", round(100*num_wrong_PRED2/rep1, 1), "%\n")
-cat("PRED3:", round(100*num_wrong_PRED3/rep1, 1), "%\n")
+# Wrong model order for each estimator
+wrong_model_PRED1 <- sum(apply(PRED1_mat, 1, which.min) != true_index)
+wrong_model_PRED2 <- sum(apply(PRED2_mat, 1, which.min) != true_index)
+wrong_model_PRED3 <- sum(apply(PRED3_mat, 1, which.min) != true_index)
+
+# Wrong minimum PE choice
+min_true_PE_index <- apply(PE_mat, 1, which.min)
+wrong_PEchoice_PRED1 <- sum(apply(PRED1_mat, 1, which.min) != min_true_PE_index)
+wrong_PEchoice_PRED2 <- sum(apply(PRED2_mat, 1, which.min) != min_true_PE_index)
+wrong_PEchoice_PRED3 <- sum(apply(PRED3_mat, 1, which.min) != min_true_PE_index)
+
+# Create a summary table
+error_table <- data.frame(
+  Estimator = c("PRED1", "PRED2", "PRED3"),
+  Wrong_Model_Order = c(wrong_model_PRED1, wrong_model_PRED2, wrong_model_PRED3),
+  Wrong_Min_PE = c(wrong_PEchoice_PRED1, wrong_PEchoice_PRED2, wrong_PEchoice_PRED3)
+)
+
+# Display the table
+kable(error_table, digits = 0)
 ```
 
+Finally, it is also of interest to see how many times each model order was selected using AIC or BIC. This is illustrated in @tbl-aic-bic-counts, below. We see that BIC picks the correct model order in the majority of cases. However, when it does not select the correct model, it tends to choose the more conservative $k=2$, indicating a tendency to underfit, which should be kept in mind. On the other hand, AIC consistently selects the highest possible model order, making it clear that using AIC as a selection criterion is not advisable.
 ```{r}
+#| tbl-cap: "Number of times each model was selected by AIC and BIC over 100 replicates"
+#| label: tbl-aic-bic-counts
+#| echo: false
 # -----------------------------
 # Table for AIC/BIC model selections over 100 replicates using kable
 # -----------------------------
@@ -773,6 +788,10 @@ selection_table <- data.frame(
   BIC_Selected = BIC_choice_counts
 )
 
-kable(selection_table, caption = "Number of times each model was selected by AIC and BIC over 100 replicates")
+kable(selection_table)
 
 ```
+
+# Use of AI
+
+AI (ChatGPT) has been utilized in this report primarily to assist with coding, including constructing and formatting plots, generating LaTeX code, and suggesting functions. It was also used for light spelling and grammar checks, and for suggestions on how to more clearly convey results.
