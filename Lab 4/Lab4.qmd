@@ -1,0 +1,400 @@
+---
+title: "Computer Lab 3: High Dimensional Data Analysis"
+author: "Sara Kopelman"
+date: today
+date-format: long
+format:
+  pdf:
+    toc: false
+    number-sections: false
+    booktabs: true
+header-includes:
+  - \usepackage{float}  
+---
+
+# Part 1: Monte Carlo simulation
+
+```{r}
+
+set.seed(42)
+
+rho_vals <- c(0.25, 0.50, 0.95)
+p_vals   <- c(10, 100, 200)
+n        <- 50
+rep      <- 200
+
+# Store simulated datasets
+results <- list()
+
+for (rho in rho_vals) {
+  for (p in p_vals) {
+
+    # Covariance matrix
+    Sigma <- rho * matrix(1, p, p) + (1 - rho) * diag(p)
+    L <- chol(Sigma)
+
+    sims <- vector("list", rep)
+
+    # True beta
+    beta <- rep(0, p)
+    beta[1:10] <- 3
+
+    for (r in 1:rep) {
+
+      # Simulate X
+      Z <- matrix(rnorm(n * p), n, p)
+      X_raw <- Z %*% L
+
+      # Simulate Y = Xβ + ε
+      eps <- rnorm(n)
+      y <- X_raw %*% beta
+
+      sims[[r]] <- list(X = X_raw, y = as.vector(y + eps))
+    }
+
+    results[[paste0("rho_", rho, "_p_", p)]] <- sims
+  }
+}
+
+```
+
+```{r}
+
+
+library(glmnet)
+library(doParallel)
+
+# Use all available cores
+cl <- makeCluster(detectCores() - 1)
+registerDoParallel(cl)
+
+results_all <- list()
+
+# Loop over combinations
+for (key in names(results)) {
+
+  sims <- results[[key]]
+  p <- ncol(sims[[1]]$X)
+  beta <- rep(0, p)
+  beta[1:10] <- 3
+
+  # Parallel over repetitions
+  errors_list <- foreach(r = seq_along(sims), .packages = "glmnet") %dopar% {
+
+    X <- scale(sims[[r]]$X)
+    y <- sims[[r]]$y
+
+    res <- list()
+
+    # ---- Ridge (alpha = 0) ----
+    ridge_cv <- cv.glmnet(x = X, y = y, alpha = 0)
+    ridge_hat <- as.vector(coef(ridge_cv, s = "lambda.min"))[-1]
+    res$ridge <- list(
+      sq_error   = sum((ridge_hat - beta)^2),
+      pred_error = sum((X %*% (ridge_hat - beta))^2),
+      cv_fit     = ridge_cv
+    )
+
+    # ---- LASSO (alpha = 1) ----
+    lasso_cv <- cv.glmnet(x = X, y = y, alpha = 1)
+
+    # lambda.min
+    lasso_min_hat <- as.vector(coef(lasso_cv, s = "lambda.min"))[-1]
+    res$lasso_min <- list(
+      sq_error   = sum((lasso_min_hat - beta)^2),
+      pred_error = sum((X %*% (lasso_min_hat - beta))^2),
+      cv_fit     = lasso_cv
+    )
+
+    # lambda.1se
+    lasso_1se_hat <- as.vector(coef(lasso_cv, s = "lambda.1se"))[-1]
+    res$lasso_1se <- list(
+      sq_error   = sum((lasso_1se_hat - beta)^2),
+      pred_error = sum((X %*% (lasso_1se_hat - beta))^2),
+      cv_fit     = lasso_cv
+    )
+
+    # ---- Elastic Net (alpha = 0.5) ----
+    enet_cv <- cv.glmnet(x = X, y = y, alpha = 0.5)
+    enet_hat <- as.vector(coef(enet_cv, s = "lambda.min"))[-1]
+    res$elastic <- list(
+      sq_error   = sum((enet_hat - beta)^2),
+      pred_error = sum((X %*% (enet_hat - beta))^2),
+      cv_fit     = enet_cv
+    )
+
+    res
+  }
+
+  # Initialize storage for this combination
+  results_all[[key]] <- list()
+
+  # Loop over methods to extract errors, averages, coef paths, and CV curves
+  for (method in c("ridge", "lasso_min", "lasso_1se", "elastic")) {
+
+    # Extract errors
+    sq_errors <- sapply(errors_list, function(x) x[[method]]$sq_error)
+    pred_errors <- sapply(errors_list, function(x) x[[method]]$pred_error)
+
+    # Save last repetition's cv_fit for coef path and CV curve
+    last_cv_fit <- errors_list[[length(sims)]][[method]]$cv_fit
+
+    results_all[[key]][[method]] <- list(
+      sq_errors      = sq_errors,
+      avg_sq_error   = mean(sq_errors),
+      pred_errors    = pred_errors,
+      avg_pred_error = mean(pred_errors),
+      coef_path      = coef(last_cv_fit$glmnet.fit),
+      lambda_seq     = last_cv_fit$glmnet.fit$lambda,
+      lambda_selected= last_cv_fit$lambda.min,
+      cv_curve       = data.frame(
+        lambda = last_cv_fit$lambda,
+        cvm    = last_cv_fit$cvm,
+        cvsd   = last_cv_fit$cvsd
+      )
+    )
+  }
+}
+
+stopCluster(cl)
+
+```
+
+```{r}
+plot_coef_paths <- function(results_all, method) {
+  for (key in names(results_all)) {
+    res <- results_all[[key]][[method]]
+
+    coef_mat <- as.matrix(res$coef_path)
+    coef_mat_no_int <- coef_mat[-1, ]  # drop intercept
+    n_coef <- nrow(coef_mat_no_int)
+
+    # Reorder columns so lambda increases
+    ord <- order(res$lambda_seq)
+    lambda <- res$lambda_seq[ord]
+    coef_mat_no_int <- coef_mat_no_int[, ord]
+
+    colors <- c(rep("red", min(10, n_coef)), rep("gray", n_coef - 10))
+
+    matplot(
+      log(lambda), t(coef_mat_no_int), type = "l", lty = 1,
+      col = colors, xlab = "log(lambda)", ylab = "Coefficients",
+      main = paste("Coefficient Paths:", key, "-", method)
+    )
+
+    legend("topright",
+           legend = c("True beta 1-10", "Zero beta"),
+           col = c("red", "gray"), lty = 1, cex = 0.8)
+  }
+}
+
+plot_cv_curves <- function(results_all, method) {
+  for (key in names(results_all)) {
+    res <- results_all[[key]][[method]]
+
+    cv_df <- res$cv_curve
+    cv_df <- cv_df[order(cv_df$lambda), ]
+    lambda <- cv_df$lambda
+
+    plot(
+      log(lambda), cv_df$cvm, type = "l", lwd = 2,
+      xlab = "log(lambda)", ylab = "CV Error",
+      main = paste("CV Curve:", key, "-", method)
+    )
+
+    # ±1 SE ribbon
+    lines(log(lambda), cv_df$cvm + cv_df$cvsd, lty = 2, col = "gray")
+    lines(log(lambda), cv_df$cvm - cv_df$cvsd, lty = 2, col = "gray")
+  }
+}
+
+```
+
+```{r}
+plot_coef_paths(results_all, method = "ridge")
+plot_cv_curves(results_all, method = "ridge")
+```
+
+```{r}
+plot_coef_paths(results_all, method = "lasso_min")
+plot_cv_curves(results_all, method = "lasso_min")
+```
+
+```{r}
+plot_coef_paths(results_all, method = "lasso_1se")
+plot_cv_curves(results_all, method = "lasso_1se")
+```
+
+```{r}
+plot_coef_paths(results_all, method = "elastic")
+plot_cv_curves(results_all, method = "elastic")
+```
+
+```{r}
+library(knitr)
+
+methods <- c("ridge", "lasso_min", "lasso_1se", "elastic")
+summary_tables <- list()
+
+# Loop over all combinations
+for (key in names(results_all)) {
+  
+  # Prepare empty summary data frame
+  summary_df <- data.frame(
+    Method = methods,
+    E_beta = NA,
+    E_Xbeta = NA
+  )
+  
+  # Loop over methods
+  for (i in seq_along(methods)) {
+    method <- methods[i]
+    
+    # Average Eβ (squared estimation error)
+    summary_df$E_beta[i]  <- mean(results_all[[key]][[method]]$sq_error)
+    
+    # Average EXβ (prediction error)
+    summary_df$E_Xbeta[i] <- mean(results_all[[key]][[method]]$pred_error)
+  }
+  
+  summary_tables[[key]] <- summary_df
+  
+  # Print nicely with kable
+  cat("\n====================================\n")
+  cat("Results for:", key, "\n")
+  print(kable(summary_df, digits = 3, caption = paste("Averaged Squared Errors:", key)))
+}
+
+
+```
+
+# Part 2: Diabetes data
+
+```{r}
+diabetes <- read.csv("diabetesdata.csv")
+```
+
+```{r}
+model <- lm(Y ~ ., data = diabetes)
+
+# Extract coefficients
+coef_table <- summary(model)$coefficients
+
+# Display coefficients as a kable
+kable(coef_table, digits = 4, caption = "OLS Regression Coefficients")
+
+# Extract key model statistics
+model_stats <- data.frame(
+  Statistic = c("Residual Standard Error", "Adjusted R-squared", "Multiple R-squared", "F-statistic"),
+  Value = c(summary(model)$sigma,
+            summary(model)$adj.r.squared,
+            summary(model)$r.squared,
+            summary(model)$fstatistic[1])
+)
+
+# Display model summary statistics as a kable
+kable(model_stats, digits = 4, caption = "OLS Model Summary Statistics")
+```
+
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(reshape2)
+
+# Load data
+diabetes <- read.csv("diabetesdata.csv")
+
+# Separate predictors and response
+X <- as.matrix(diabetes[, -which(names(diabetes) == "Y")])
+y <- diabetes$Y
+
+
+# Cross-validation to select lambda
+set.seed(42)
+cv_ridge <- cv.glmnet(X, y, alpha = 0, standardize = FALSE)
+
+# Use the same lambda grid as in cv.glmnet to fit the model
+ridge_model <- glmnet(X, y, alpha = 0, standardize = FALSE, lambda = cv_ridge$glmnet.fit$lambda)
+```
+
+```{r}
+coef_mat <- as.matrix(ridge_model$beta)
+coef_df <- data.frame(lambda = ridge_model$lambda, t(coef_mat))
+coef_melt <- melt(coef_df, id.vars = "lambda")
+
+ggplot(coef_melt, aes(x = log(lambda), y = value, color = variable)) +
+  geom_line(size = 1) +
+  geom_vline(xintercept = log(cv_ridge$lambda.min), linetype = "dashed", color = "red") +
+  labs(x = "log(lambda)", y = "Coefficient",
+       title = "Ridge Regression Coefficient Paths",
+       subtitle = "Red dashed line indicates lambda.min") +
+  theme_minimal() +
+  theme(legend.title = element_blank())
+```
+
+```{r}
+# Prepare CV data
+cv_df <- data.frame(
+  lambda = cv_ridge$lambda,
+  cvm = cv_ridge$cvm,   # mean CV error
+  cvup = cv_ridge$cvup, # upper SE
+  cvlo = cv_ridge$cvlo  # lower SE
+)
+
+# Plot CV curve
+ggplot(cv_df, aes(x = log(lambda), y = cvm)) +
+  geom_line(size = 1, color = "blue") +
+  geom_ribbon(aes(ymin = cvlo, ymax = cvup), alpha = 0.2) +
+  geom_vline(xintercept = log(cv_ridge$lambda.min), linetype = "dashed", color = "red") +
+  labs(
+    x = "log(lambda)",
+    y = "Mean CV Error",
+    title = "Cross-Validation Curve for Ridge Regression",
+    subtitle = "Red dashed = lambda.min"
+  ) +
+  theme_minimal()
+
+
+```
+
+```{r}
+
+lasso_mod <- glmnet(X, y, alpha = 1, standardize = FALSE)
+
+
+set.seed(42)
+cv_lasso_mod <- cv.glmnet(X, y, alpha = 1, standardize = FALSE)
+
+# Best lambda (lambda.min)
+lambda_best <- cv_lasso_mod$lambda.min
+lambda_best
+
+
+coef_lasso <- coef(cv_lasso_mod, s = "lambda.min")
+
+# Convert to data frame for reporting
+coef_lasso_df <- data.frame(
+  Variable = rownames(coef_lasso),
+  Coefficient = as.numeric(coef_lasso)
+)
+
+# Display coefficients as a kable
+kable(coef_lasso_df, digits = 4, caption = "LASSO Coefficients at lambda.min")
+
+# ----------------------------
+# 4. Coefficient Path Plot
+# ----------------------------
+coef_mat <- as.matrix(lasso_mod$beta)
+coef_df <- data.frame(lambda = lasso_mod$lambda, t(coef_mat))
+coef_melt <- melt(coef_df, id.vars = "lambda")
+
+ggplot(coef_melt, aes(x = log(lambda), y = value, color = variable)) +
+  geom_line(size = 1) +
+  geom_vline(xintercept = log(lambda_best), linetype = "dashed", color = "red") +
+  labs(x = "log(lambda)", y = "Coefficient",
+       title = "LASSO Regression Coefficient Paths",
+       subtitle = "Red dashed line indicates lambda.min") +
+  theme_minimal() +
+  theme(legend.title = element_blank())
+
+```
