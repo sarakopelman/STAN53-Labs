@@ -14,6 +14,77 @@ header-includes:
 
 # Part 1: Monte Carlo simulation
 
+In this section, we simulate data from the linear model
+
+$$
+Y = X\beta + \epsilon
+$$
+
+where $X$ is an $n \times p$ design matrix drawn from a multivariate normal distribution with independent rows
+
+$$
+X_i \sim N_p(0, \Sigma)
+$$
+
+and covariance matrix
+
+$$
+\Sigma = \rho J_p + (1 - \rho) I_p,
+$$
+
+where $J_p$ is the $p \times p$ matrix of ones, $I_p$ is the $p \times p$ identity matrix, and $\rho$ denotes the pairwise correlation among covariates.
+
+The true coefficient vector is given by
+
+$$
+\beta_1 = \beta_2 = \cdots = \beta_{10} = 3,
+\qquad
+\beta_{11} = \cdots = \beta_p = 0,
+$$
+
+and the noise term satisfies
+
+$$
+\epsilon \sim N_n(0, I_n).
+$$
+
+We consider all combinations of
+
+$$
+\rho \in \{0.25, 0.50, 0.95\},
+\qquad
+p \in \{10, 100, 200\},
+$$
+
+with a fixed sample size $n = 50$. For each configuration, 200 independent datasets are generated.
+
+For each pair $(\rho, p)$, the simulation steps are:
+
+1.  Construct the covariance matrix\
+    $$
+    \Sigma = \rho J_p + (1 - \rho) I_p.
+    $$
+
+2.  Compute its Cholesky factor $L$.
+
+3.  For each replication:
+
+    -   Generate a matrix $Z$ with i.i.d. $N(0, 1)$ entries.\
+    -   Form the design matrix\
+        $$
+        X = ZL.
+        $$
+    -   Draw noise\
+        $$
+        \epsilon \sim N_n(0, I_n).
+        $$
+    -   Compute the response\
+        $$
+        Y = X\beta + \epsilon.
+        $$
+
+This procedure is repeated 200 times for each $(\rho, p)$ configuration.
+
 ```{r}
 
 set.seed(42)
@@ -58,7 +129,17 @@ for (rho in rho_vals) {
 
 ```
 
-```{r}
+After generating the simulated datasets, we estimated the regression coefficients using three penalized regression methods: ridge regression, LASSO, and elastic net. All models were fitted using the `glmnet` package, with the tuning parameter $\lambda$ selected via $K$-fold cross-validation. Ridge regression corresponds to $\alpha = 0$, LASSO to $\alpha = 1$, and the elastic net to $\alpha = 0.5$. For LASSO, we considered both the value of $\lambda$ that minimizes the cross-validation error ($\lambda_{min}$) and the more conservative value within one standard error of the minimum ($\lambda_{1se}$).
+
+To speed up computation across the 200 simulated datasets per configuration, the `doParallel` package was used to distribute the repetitions across available CPU cores. For each fitted model we computed the squared estimation error $$
+E_\beta=\lVert \hat{\beta} - \beta \rVert_2^2,
+$$ and the prediction error $$
+E_{X\beta}=\lVert X (\hat{\beta} - \beta) \rVert_2^2.
+$$
+
+For each combination of $(\rho, p)$ and each estimation method, we stored the vector of errors across repetitions and their averages. In addition, only the coefficient path, cross-validation curve, and selected $\lambda$ from the final repetition were retained for visualization, rather than saving these objects for every repetition.
+
+```{r, message=FALSE, warning=FALSE, echo=TRUE}
 
 
 library(glmnet)
@@ -210,8 +291,20 @@ plot_cv_curves <- function(results_all, method) {
 
 ```
 
+@fig-ridge-cof-paths, bellow, plots the coefficient paths for all the combinations based on one replicate. We observe that the estimates at $p=10$ perform the best which is to be expected given that it corresponds to the true model order. However, we observe that the variance is the lowest for the $\rho=0.95$ replicate, with the high correlation acting as a stabilizing effect when all variables are truly nonzero. However, we see clear issues for the $p>10$ combinations. Due to the correlations present between the zero- and non-zero predictors the non-zero estimates the predictors are all shrunk together, leading to far too low estimates for the non-zero predictors. However, we do see that the non-zero predictors are still somewhat differentiated from those that are zero, as they are mostly consistently shrunk the least.
+
 ```{r}
+#| label: fig-ridge-cof-paths
+#| fig-cap: "Coefficient paths for Ridge Regression"
 plot_coef_paths(results_all, method = "ridge")
+
+```
+
+@fig-ridge-cv-curve, below, plots the corresponding cross validation curves for the ridge regression.
+
+```{r}
+#| label: fig-ridge-cv-curve
+#| fig-cap: "Cross validation curves for Ridge Regression"
 plot_cv_curves(results_all, method = "ridge")
 ```
 
