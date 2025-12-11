@@ -1,5 +1,5 @@
 ---
-title: "Computer Lab 3: High Dimensional Data Analysis"
+title: "Computer Lab 4: High Dimensional Data Analysis"
 author: "Sara Kopelman"
 date: today
 date-format: long
@@ -83,7 +83,7 @@ For each pair $(\rho, p)$, the simulation steps are:
         Y = X\beta + \epsilon.
         $$
 
-This procedure is repeated 200 times for each $(\rho, p)$ configuration.
+This procedure is repeated 200 times for each $(\rho, p)$ configuration. The exact procedure is described in the below code chunk.
 
 ```{r}
 
@@ -129,7 +129,7 @@ for (rho in rho_vals) {
 
 ```
 
-After generating the simulated datasets, we estimated the regression coefficients using three penalized regression methods: ridge regression, LASSO, and elastic net. All models were fitted using the `glmnet` package, with the tuning parameter $\lambda$ selected via $K$-fold cross-validation. Ridge regression corresponds to $\alpha = 0$, LASSO to $\alpha = 1$, and the elastic net to $\alpha = 0.5$. For LASSO, we considered both the value of $\lambda$ that minimizes the cross-validation error ($\lambda_{min}$) and the more conservative value within one standard error of the minimum ($\lambda_{1se}$).
+After generating the simulated data-sets, we estimated the regression coefficients using three regularized methods: ridge regression, LASSO, and elastic net. All models were fitted using the `glmnet` package, with the tuning parameter $\lambda$ selected via $K$-fold cross-validation. Ridge regression corresponds to $\alpha = 0$, LASSO to $\alpha = 1$, and the elastic net to $\alpha = 0.5$. For LASSO, we considered both the value of $\lambda$ that minimizes the cross-validation error ($\lambda_{min}$) and the more conservative value within one standard error of the minimum ($\lambda_{1se}$).
 
 To speed up computation across the 200 simulated datasets per configuration, the `doParallel` package was used to distribute the repetitions across available CPU cores. For each fitted model we computed the squared estimation error $$
 E_\beta=\lVert \hat{\beta} - \beta \rVert_2^2,
@@ -137,7 +137,7 @@ $$ and the prediction error $$
 E_{X\beta}=\lVert X (\hat{\beta} - \beta) \rVert_2^2.
 $$
 
-For each combination of $(\rho, p)$ and each estimation method, we stored the vector of errors across repetitions and their averages. In addition, only the coefficient path, cross-validation curve, and selected $\lambda$ from the final repetition were retained for visualization, rather than saving these objects for every repetition.
+For each combination of $(\rho, p)$ and each estimation method, we stored the vector of errors across repetitions and their averages. In addition, only the coefficient path, cross-validation curve, and selected $\lambda$ from the final repetition were retained for visualization, rather than saving these objects for every repetition. The exact estimation procedure is described in the below code chunk.
 
 ```{r, message=FALSE, warning=FALSE, echo=TRUE}
 
@@ -248,6 +248,7 @@ stopCluster(cl)
 ```
 
 ```{r}
+#| echo: false
 plot_coef_paths <- function(results_all, method) {
   sparse <- method %in% c("lasso_min", "lasso_1se", "elastic")
   
@@ -382,77 +383,89 @@ plot_cv_curves <- function(results_all, method) {
 
 ```
 
-@fig-ridge-cof-paths, bellow, plots the coefficient paths for all the combinations based on one replicate. We observe that the estimates at $p=10$ perform the best which is to be expected given that it corresponds to the true model order. However, we observe that the variance is the lowest for the $\rho=0.95$ replicate, with the high correlation acting as a stabilizing effect when all variables are truly nonzero. However, we see clear issues for the $p>10$ combinations. Due to the correlations present between the zero- and non-zero predictors the non-zero estimates the predictors are all shrunk together, leading to far too low estimates for the non-zero predictors. However, we do see that the non-zero predictors are still somewhat differentiated from those that are zero, as they are mostly consistently shrunk the least.
+We begin by looking at Ridge regression. @fig-ridge-cof-paths, below, plots the coefficient paths for Ridge across all combinations based on one replicate. We observe that the estimates at $p=10$ perform the best, as expected, since this corresponds to the true model order. The variance is lowest for the $\rho=0.95$ replicate, with high correlation stabilizing the estimates when all variables are truly nonzero. Clear issues arise for the $p>10$ combinations: due to correlations between zero and non-zero predictors, the non-zero estimates are all shrunk together, resulting in substantially underestimated values for the true signals. Nevertheless, the non-zero predictors remain somewhat distinguishable from the zeros, as they are generally shrunk the least.
 
 ```{r}
+#| echo: false
 #| label: fig-ridge-cof-paths
 #| fig-cap: "Coefficient paths for Ridge Regression"
 #| fig-width: 14
-#| fig-height: 14
+#| fig-height: 22
+#| fig-pos: "H"
 plot_coef_paths(results_all, method = "ridge")
 
 ```
 
-@fig-ridge-cv-curve, below, plots the corresponding cross validation curves for the ridge regression. For the $p=10$ combinations, the cross validation errors behave quite similarily for all values of $\rho$ (although the initial error itself is much higher for $\rho=0.95$, with a sigmoid shape. However for higher values of $p$ the error decreases more gradually instead.
+@fig-ridge-cv-curve, below, plots the corresponding cross validation curves for the ridge regression. For the $p=10$ combinations, the cross validation errors behave quite similarly for all values of $\rho$ (although the initial error itself is much higher for $\rho=0.95$, with a sigmoid shape). However, for higher values of $p$ the error decreases more gradually instead.
 
 ```{r}
 #| label: fig-ridge-cv-curve
 #| fig-cap: "Cross validation curves for Ridge Regression"
 #| fig-width: 14
-#| fig-height: 14
+#| fig-height: 22
+#| echo: false
+#| fig-pos: "H"
 plot_cv_curves(results_all, method = "ridge")
 ```
 
-Moving on to LASSO whose coefficient paths are illyustrated in @fig-lasso-cof-paths, below, we see that the estimates at $p=10$ perform similarily to Ridge, although it doesn't gain the same decrease in the spread of the estimates with increased $\rho$. However, for $p>10$ combination there is a large difference. As LASSO can produce sparse estimates we observe that even in the presence of correlation, most of the zero coefficients are set exactly to zero, creating a clear separation from the non-zero coefficients. A few zero coefficients (roughly 15–20 out of 100–200) are not fully suppressed; however, these remaining coefficients are still much lower than the true signals and easily distinguishable in the coefficient paths. The non-zero coefficients themselves are generally slightly below the true value of 3, indicating mild shrinkage, but remain clearly identifiable as signals.
+Moving on to LASSO, whose coefficient paths are illustrated in @fig-lasso-cof-paths, we see that the estimates at $p=10$ perform similarly to Ridge, although LASSO does not achieve the same reduction in the spread of estimates with increasing $\rho$. For $p>10$ combinations, however, differences become more pronounced. Because LASSO can produce sparse estimates, even in the presence of correlation, most of the zero coefficients are set exactly to zero, creating a clear separation from the non-zero coefficients. A few zero coefficients (roughly 15–30 out of 100–200) are not fully suppressed, but these remaining coefficients are still much lower than the true signals and easily distinguishable in the coefficient paths. The non-zero coefficients themselves are generally slightly below the true value of 3, indicating mild shrinkage, but they remain clearly identifiable as signals.
 
-The clear separation between zero and non-zero coefficients begins to weaken only in the most extreme settings — specifically when both the number of predictors and the correlation are very high, where some zero coefficients are less strongly shrunk and the distinction between signal and noise in the coefficient paths is reduced, though the majority of zero coefficients remain far below the non-zero coefficients. However, in the most extreme case of $\rho=0.95$ and $p=200$ two of the non-zero coefficients is incorrectly shrunk to 0.
+The clear separation between zero and non-zero coefficients begins to weaken only in the most extreme settings, specifically when both the number of predictors and the correlation are very high. In these cases, some zero coefficients are less strongly shrunk, reducing the distinction between signal and noise in the coefficient paths, though the majority of zero coefficients remain far below the non-zero coefficients. In the most extreme case of $\rho=0.95$ and $p=200$, one of the non-zero coefficients are incorrectly shrunk to zero.
 
-As for the selection method for $\lambda$, both seems to perform similarily.
+As for the selection method for $\lambda$, both seems to perform similarly in terms of the estimates and shrinkage.
 
 ```{r}
 #| label: fig-lasso-cof-paths
 #| fig-cap: "Coefficient paths for LASSO"
 #| fig-width: 14
 #| fig-height: 22
+#| echo: false
+#| fig-pos: "H"
 plot_coef_paths(results_all, method = "lasso_1se")
 ```
 
-Moving on to the CV error path, iullustrated in @fig-lasso-cv-curve, below, we see that compared to Ridge the behaviour for the cross validation error behaves much similiar across different combinations, with the error first decreasing ands then flattening. However, curiously the $\rho=0.5, p=200$ does not flatten at much. We see that the CV error is similiar for bot values of $\lambda$ except for once again the $\rho=0.5, p=200$ case where it is quite noticibly higher. However, uinless evaluating on test data it is not that meaningful to compare these values.
+Moving on to the CV error path, illustrated in @fig-lasso-cv-curve, we see that, compared to Ridge, the cross-validation error behaves very similarly across different combinations: it first decreases and then flattens. However, curiously, the $\rho=0.5, p=200$ case does not flatten as much. For most combinations, the CV error is similar across values of $\lambda$, except again for the $\rho=0.5, p=200$ case, where it is noticeably higher. That said, unless the error is evaluated on independent test data, comparing these absolute values is not particularly meaningful.
 
 ```{r}
 #| label: fig-lasso-cv-curve
 #| fig-cap: "Cross validation curves for LASSO"
 #| fig-width: 14
 #| fig-height: 22
+#| echo: false
+#| fig-pos: "H"
 plot_cv_curves(results_all, method = "lasso_1se")
 ```
 
-We now move on to elastic net, whose coefficient paths are illustrated in @fig-el-cof-paths, below. We see that the performance at the $p=10$ setting is inbetween Ridge and LASSO, with the spread bof the estimates being smaller at for the higfher values of $\rho$ but unable to take fully advantage of the correlation to set the estimates at similiar values. Similarily, elastic net seems to perform somewhere inbeteen Ridge and LASSO for the higehr orders as well. For the values where $\rho$ and/or $p$ are not the most extreme elastic net show a clear separation between zero and non-zero coefficients, with arond the same time of true nulls set to zero. Hower, in the more extreme cases we see that elastic net begins to struggle somewhat compared to LASSO. Separation is slightly worse than that of LASSO in these cases and the non-nulls are shrunk more. Furthermore, in the most extreme case, two non-nulls are incorrectly set to zero while at the same time many more zeroes are kept compared to LASSO.
+We now move on to Elastic Net, whose coefficient paths are illustrated in @fig-el-cof-paths, below. We see that performance at the $p=10$ setting lies between Ridge and LASSO: the spread of the estimates is smaller for higher values of $\rho$, but Elastic Net is unable to fully utilize the correlation to align the estimates. Similarly, for higher orders, Elastic Net performs between Ridge and LASSO. In settings where $\rho$ and/or $p$ are not extreme, Elastic Net shows a clear separation between zero and non-zero coefficients, with roughly the same proportion of true nulls set to zero. However, in more extreme cases, Elastic Net begins to struggle compared to LASSO. Separation between zero and non-zero coefficients is slightly worse, the non-zero coefficients are shrunk more, and in the most extreme case, two non-zero coefficients are incorrectly set to zero while at the same time many more zero coefficients are retained compared to LASSO.
 
 ```{r}
 #| label: fig-el-cof-paths
 #| fig-cap: "Coefficient paths for Elastic Net"
 #| fig-width: 14
 #| fig-height: 22
+#| echo: false
+#| fig-pos: "H"
 plot_coef_paths(results_all, method = "elastic")
 ```
 
-The CV error path for the elastic net estimate is illustrated in @fig-el-cv-curve, below. We see that the paths are quite similiar to that of LASSO alhough the $\lambda$ that minimizes CV error tends to be slightly smaller in comparison.
+The CV error path for the Elastic Net estimates is illustrated in @fig-el-cv-curve, below. We see that the paths are quite similar to those of LASSO, although the value of $\lambda$ that minimizes the CV error tends to be slightly smaller.
 
 ```{r}
 #| label: fig-el-cv-curve
 #| fig-cap: "Cross validation curves for Elastic net"
 #| fig-width: 14
 #| fig-height: 22
+#| echo: false
+#| fig-pos: "H"
 plot_cv_curves(results_all, method = "elastic")
 ```
 
-Finally we will look at how the estimationmethods compared overall across all replicates in terms of the two estimation errors $E_\beta$ and $E_{X\beta}$ for each setting. This is illustrated in @tbl-summary, below. We observe that in the $p=10$, setting Ridge performs the best for both metriucs, , the one diffewrent is when $rho=0.95$ is for $\rho=0.95$, where elastic net performs better in the prediction error only. In higher dimensions LASSO with $\lambda_{\min}$ performs the best in all cases. This was clearly visible in the graphs and given that we have not evaluated our model on unseen data it is naturally that \$\\lambda\_{\\min} should outperform $\lambda_{1\text{se}}$ as well.
+Finally, we examine how the estimation methods compare overall across all replicates in terms of the two estimation errors, $E_\beta$ and $E_{X\beta}$, for each setting. This is illustrated in @tbl-summary, below. We observe that in the $p=10$ setting, Ridge performs the best for both metrics, with the only exception being for $\rho=0.95$, where Elastic Net achieves a slightly better prediction error. In higher dimensions, LASSO with $\lambda_{\min}$ performs the best in all cases. This is consistent with the coefficient path graphs, and given that we have not evaluated the models on unseen data, it is natural that $\lambda_{\min}$ outperforms $\lambda_{1\text{se}}$ as well
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 #| echo: false
 #| label: tbl-summary
-#| fig-cap: "Summary of Estimation and Prediction Errors with best method bolded"
+#| tbl-cap: "Summary of Estimation and Prediction Errors with best method bolded"
 library(dplyr)
 library(knitr)
 library(kableExtra)
@@ -490,46 +503,48 @@ This result can at first look seem a bit unexpected given that Elastic Net is ge
 
 # Part 2: Diabetes data
 
-We now move on to the next part where we will work with real data, specifically we will attempt to model disease prediction of diabetes,. The data have been standaridez meaning that wee can directly compare effect of variables in terms of magniotuyde much nmor easiy.
+We now move on to the next part, where we will work with real data. Specifically, we will attempt to model disease prediction for diabetes. The data have been standardized, allowing us to directly compare the effects of variables in terms of magnitude much more easily.
 
 ```{r}
-#|echo: false
+#| echo: false
 diabetes <- read.csv("diabetesdata.csv")
 ```
 
-We will begn by taking a short look at the correlations in the dataset. We see that there are many moderate to strong correlations present between the blood serum measurements indicating that there might be multicollinearity present.
+We begin by taking a brief look at the correlations in the data set. We observe that many of the blood serum measurements are moderately to strongly correlated, indicating the potential presence of multicollinearity.
 
 ```{r}
 #| echo: false
 #| label: fig-diab-cor
 #| fig-cap: "Correlation plot of the Diabetes dataset"
+#| message: false
+#| fig-pos: "H"
 library(corrplot)
 cor_matrix <- cor(diabetes)
 corrplot(cor_matrix, method = "color", type = "upper", 
          tl.col = "black", tl.srt = 45)
 ```
 
-We begin by fitting an orinary leasr squares regression using all the predictors. The estimated model is described in @tbl-ols-mod, below. We see that of the non blood serum measurements, all but *age* are significant. However, among the blood serum measurements only S5 is significant.
+We begin by fitting an ordinary least squares regression using all predictors. The estimated model is summarized in @tbl-ols-mod, below. Among the non-blood serum measurements, all predictors except age are statistically significant. In contrast, within the blood serum measurements, only S5 shows significance.
 
 ```{r}
-#|echo: false
-#|label: tbl-ols-mod
+#| echo: false
+#| label: tbl-ols-mod
+#| tbl-cap: "OLS Regression Coefficients"
 model <- lm(Y ~ ., data = diabetes)
-
-# Extract coefficients
 coef_table <- summary(model)$coefficients
+kable(coef_table, digits = 4)  # no caption inside kable
 
-# Display coefficients as a kable
-kable(coef_table, digits = 4, caption = "OLS Regression Coefficients")
 
 ```
 
-@tbl-ols-metrics, below, illustrates summary metrics for the OLS model. With $R^2$ around 0.5 our model can be said to explain a moderate amount of disease progression for diabetes.
+@tbl-ols-metrics, below, summarizes key metrics for the OLS model. With an $R^2$ around 0.5, the model explains a moderate proportion of the variation in disease progression for diabetes.
 
 ```{r}
-#|echo: false
-#|label: tbl-ols-metrics
-#|# Extract key model statistics
+#| echo: false
+#| label: tbl-ols-metrics
+#| tbl-cap: "OLS Model Summary Statistics"
+
+# Extract key model statistics
 model_stats <- data.frame(
   Statistic = c("Residual Standard Error", "Adjusted R-squared", "Multiple R-squared", "F-statistic"),
   Value = c(summary(model)$sigma,
@@ -539,14 +554,16 @@ model_stats <- data.frame(
 )
 
 # Display model summary statistics as a kable
-kable(model_stats, digits = 4, caption = "OLS Model Summary Statistics")
+kable(model_stats, digits = 4)
+
 ```
 
-We now move on to attempting to fit a model using regularized methods, beginning with ridge regression.
+We now move on to attempting to fit a model using regularized methods, beginning with Ridge regression.
 
 ```{r}
-set.seed(42)
 #| echo: false
+set.seed(42)
+
 # Load necessary libraries
 library(ggplot2)
 library(reshape2)
@@ -567,18 +584,22 @@ cv_ridge <- cv.glmnet(X, y, alpha = 0, standardize = FALSE)
 ridge_model <- glmnet(X, y, alpha = 0, standardize = FALSE, lambda = cv_ridge$glmnet.fit$lambda)
 ```
 
-The below output illustrates the Ridge Regression Coefficents at $\lambda_{\min}$. We see that the bloood serum measurments (along with sex which was correlated to S3) have been shrunk to have more similiar level, compared to before when a few where much larger.
+The output below illustrates the Ridge Regression coefficients at $\lambda_{\min}$. We see that the blood serum measurements (along with sex, which is correlated with S3) have been shrunk to more similar levels compared to the OLS estimates, where a few coefficients were much larger.
 
 ```{r}
+#| echo: false
 coef(ridge_model, s = cv_ridge$lambda.min)
 ```
 
-@fig-dcof-ridge, below, illustrates the coefficient path for the ridge regression. We see that the blood serum variables move together and that *sex* is shrunk quite aggresivly.
+@fig-dcof-ridge, below, shows the coefficient paths for the ridge regression. We observe that the blood serum variables move together, while sex is shrunk quite aggressively.
 
 ```{r}
 #| echo: false
 #| label: fig-dcof-ridge
 #| fig-cap: "Coefficient path for Ridge regression on Diabetes dataset."
+#| warning: false
+#| message: false
+#| fig-pos: "H"
 
 coef_mat <- as.matrix(ridge_model$beta)
 coef_df <- data.frame(lambda = ridge_model$lambda, t(coef_mat))
@@ -595,12 +616,13 @@ ggplot(coef_melt, aes(x = -log(lambda), y = value, color = variable)) +
 
 ```
 
-s @fig-dcv-ridge, below, illustrates the cross validation error path for the ridge regressio. We see that the error decreases smoothly rather than having a sharp plateau.
+@fig-dcv-ridge, below, illustrates the cross-validation error path for the Ridge regression. We see that the error decreases smoothly, without a sharp plateau.
 
 ```{r}
 #| echo: false
 #| label: fig-dcv-ridge
 #| fig-cap: "Cross validation error path for Ridge regression on Diabetes dataset."
+#| fig-pos: "H"
 # Prepare CV data
 cv_df <- data.frame(
   lambda = cv_ridge$lambda,
@@ -624,7 +646,7 @@ ggplot(cv_df, aes(x = -log(lambda), y = cvm)) +
 
 
 ```
-
+We now move on to fitting the model using LASSO.
 ```{r}
 #| echo: false
 lasso_mod <- glmnet(X, y, alpha = 1, standardize = FALSE)
@@ -649,18 +671,20 @@ coef_lasso_df <- data.frame(
 
 ```
 
-The blow output illustrates the estimated coefficients for the LASSO coefficents. While some coefficents have been somewhat shrunk the estimates are overall quite similiar to the OLS model and no coefficents have been set to 0.
+The below output illustrates the estimated coefficients for the LASSO model. While some coefficients have been slightly shrunk, the estimates are overall quite similar to the OLS model, and no coefficients have been set to 0.
 
 ```{r}
+#| echo: false
 coef(lasso_mod, s = cv_lasso_mod$lambda.min)
 ```
 
-s @fig-dcof-lasso, below, illustrates the coefficent paths for LASSO. We see that at higher $\lambda$ many of the estimates are set to close to 0, but that S5 and *Sex* start to quickly approach their OLS estimates once they enter the model.
+@fig-dcof-lasso, below, illustrates the coefficient paths for LASSO. We see that at higher values of $\lambda$, many of the estimates are shrunk close to 0, but S5 and Sex quickly approach their OLS estimates once they enter the model.
 
 ```{r}
 #| echo: false
 #| label: fig-dcof-lasso
 #| fig-cap: "Coefficient path for LASSO on Diabetes dataset."
+#| fig-pos: "H"
 
 
 # Extract coefficients from Lasso model
@@ -681,12 +705,13 @@ ggplot(coef_melt, aes(x = -log(lambda), y = value, color = variable)) +
 
 ```
 
- s @fig-dcv-lasso, below, illustrates the cross validation error path for LASSO. Unlike Ridge the path has a large plateau and it seems that using $\lambda_{1\text{se}}$ instead and testing the model on unseen data could potentionally be fruitful, given how different the model looks at the start of the pleateau compared to the end in the coefficent paths.
+@fig-dcv-lasso, below, illustrates the cross-validation error path for LASSO. Unlike Ridge, the path has a large plateau. This suggests that using $\lambda_{1\text{se}}$ and evaluating the model on unseen data could be potentially beneficial, given how different the model appears at the start of the plateau compared to the end in the coefficient paths.
 
 ```{r}
 #| echo: false
 #| label: fig-dcv-lasso
 #| fig-cap: "Cross validation error path for LASSO on Diabetes dataset."
+#| fig-pos: "H"
 # Prepare CV data
 cv_df <- data.frame(
   lambda = cv_lasso_mod$lambda,
@@ -714,14 +739,16 @@ In order to evaluate the performance of the models, we performed 10-fold cross-v
 
 For OLS, the model was directly fitted on the training folds in each iteration. For Ridge and Lasso, the cross-validation procedure used the previously selected optimal regularization parameter, $\lambda_{\min}$,⁡ obtained from CV on the full dataset. Since the best lambda was chosen using information from the entire dataset, this introduces a slight “data peeking”, meaning that the reported CV errors for Ridge and Lasso may be slightly optimistic.
 
-For Lasso, it could also have been interesting to evaluate performance using $\lambda_{1\text{se}}$, which provides a more conservative choice that often results in sparser models. However, we did not use it in this analysis because it was not specified. Despite this, the procedure still provides a reasonable comparison of predictive performance across models while accounting for variability due to different training-test splits.
+For Lasso, it could also have been interesting to evaluate performance using $\lambda_{1\text{se}}$, which provides a more conservative choice that often results in sparser models. However, we did not use it in this analysis because it was not specified.
 
-The resulting MSE values are decribed in @tbl-10fold-mse, below, We observe that OLS performed the best with LASSO performing just slightlly better (completely natural, given that the shrinkage was very low). Ridge performs slightly worse.
+The resulting MSE values are described in @tbl-10fold-mse, below. We observe that OLS performed the best, with LASSO performing just slightly worse (which is natural, given that the shrinkage was very low). Ridge performs slightly worse than both.
 
 ```{r}
-#|echo: false
-#|label: tbl-10fold-mse
-#|tbl-cap: "MSE from 10-fold CV"
+#| echo: false
+#| label: tbl-10fold-mse
+#| tbl-cap: "MSE from 10-fold CV"
+#| message: false
+#| warning: false
 library(caret)
 
 set.seed(42)
@@ -828,3 +855,7 @@ In terms of coefficient shrinkage, OLS does not apply any regularization. This c
 Regarding model interpretability, OLS is straightforward, as all variables are retained and coefficients can be directly compared. Ridge is slightly less interpretable because coefficients are shrunk, but it does not perform variable selection, so all predictors remain in the model. Lasso is potentially the most interpretable, as it can highlight the most important predictors by eliminating uninformative ones, but in this analysis it was overall very similiar to OLS.
 
 Given that the regularized methods provide only modest gains and no variables were actually eliminated, OLS might be considered the best choice for this dataset, producing unbiased estimates while retaining all informative predictors.
+
+# Use of AI
+
+AI (ChatGPT) has been utilized in this report primarily to assist with coding, including constructing and formatting plots, generating LaTeX code, and suggesting functions. It was also used to streamline the workflow, for example by automating the collection of estimates, parallelizing functions, and optimizing repetitive procedures. Additionally, it provided light spelling and grammar checks, as well as suggestions for more clearly conveying results.
