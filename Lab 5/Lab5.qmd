@@ -1,0 +1,51 @@
+---
+title: "Computer Lab 4: High Dimensional Data Analysis"
+author: "Sara Kopelman"
+date: today
+date-format: long
+format:
+  pdf:
+    toc: false
+    number-sections: false
+    booktabs: true
+header-includes:
+  - \usepackage{float}  
+---
+
+# Part 1: Eigenvalues and Eigenvectors
+
+```{r}
+Sig <- cbind(c(1, -2, 0), c(-2, 5, 0), c(0,0,2))
+eigen_results <- eigen(Sig)
+```
+
+```{r}
+lhs <- sapply(1:3, function(i) {
+  ei <- eigen_results$vectors[, i]
+  t(ei) %*% Sig %*% ei
+})
+
+rhs <- eigen_results$values
+cbind(lhs = lhs, rhs = rhs)
+```
+
+```{r}
+ei <- eigen_results$vectors[, 1]
+ek <- eigen_results$vectors[, 2]
+
+t(ei) %*% Sig %*% ek
+
+```
+
+# Part 2: Principal Component Analysis (PCA)
+
+```{r}
+data <- read.table("T8-4.DAT", header = FALSE)  # use header = FALSE if no header 
+colnames(data) <- c("JP_Morgan", "Citibank", "Wells_Fargo", "Royal_Dutch_Shell", "ExxonMobil")
+
+
+```
+
+```{r}
+PC <- prcomp (data, scale. = FALSE )
+```
