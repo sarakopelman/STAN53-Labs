@@ -234,6 +234,8 @@ In general, PCA is performed on standardized data to ensure that all variables c
 
 # Part 3: Sparse Clustering
 
+In this section we explore sparse clustering. We begin by simulating the data as detailed in the below output.
+
 ```{r}
 library(sparcl)
 set.seed(2025)
@@ -241,6 +243,32 @@ X <- matrix(rnorm(50*70), ncol=70)
 X[1:25, 1:10] <- X[1:25, 1:10] + 1.5
 X <- scale(X)
 ```
+
+## 1)
+
+We now turn to selecting the tuning parameter for sparse K-means clustering. Following the explanations in the `sparcl` package documentation, the package provides a permutation-based approach inspired by the gap statistic (Tibshirani et al., 2001), which helps identify the level of sparsity that best separates the clusters.
+
+Sparse K-means assigns a weight $w_j$ to each feature and seeks clusters $C_1, \dots, C_K$ that maximize the weighted between-cluster sum of squares. Formally, the objective is
+
+$$
+O(s) = \sum_{j=1}^p w_j \, BCSS_j,
+$$
+
+where $BCSS_j$ measures the contribution of feature $j$ to cluster separation, and $s$ controls the overall sparsity of the weights via an L1 constraint.
+
+To evaluate whether the observed clustering is stronger than expected by chance, the method permutes the values within each feature and recomputes the objective, yielding a set of permuted values $O^*(s)$. The gap statistic is then defined as
+
+$$
+\text{Gap}(s) = \log(O(s)) - \text{mean}(\log(O^*(s))).
+$$
+
+A larger gap indicates that the clustering is more distinct relative to random noise. The optimal tuning parameter $s$ can be chosen as the one that maximizes $\text{Gap}(s)$, or alternatively as the smallest $s$ for which the gap is within one standard deviation of the maximum:
+
+$$
+\text{Gap}(s) \ge \max_s \text{Gap}(s) - \text{sd}(\log(O^*(s))).
+$$
+
+The below code executes the procedure.
 
 ```{r}
 set.seed(2025)
@@ -250,11 +278,17 @@ perm.out <- KMeansSparseCluster.permute(X, K = 2, nperms = 10, wbounds = seq(2, 
 
 ```
 
+We see that the best *wbound* was determined to be 4.
+
 ```{r}
 best_wbound <- perm.out$bestw
 best_wbound
 
 ```
+
+## 2)
+
+We now perform the actual cluster analysis
 
 ```{r}
 set.seed(2025)
