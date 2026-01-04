@@ -49,3 +49,147 @@ colnames(data) <- c("JP_Morgan", "Citibank", "Wells_Fargo", "Royal_Dutch_Shell",
 ```{r}
 PC <- prcomp (data, scale. = FALSE )
 ```
+
+```{r}
+# Standard deviations of original variables
+sd_X <- apply(data, 2, sd)
+
+# Matrix of correlations: cor(PCs, original variables)
+cor_matrix <- sweep(PC$rotation, 2, PC$sdev, "*")  # multiply each column by PC sd
+cor_matrix <- sweep(cor_matrix, 1, sd_X, "/")       # divide each row by original SD
+
+cor_matrix
+```
+
+```{r}
+# Standard deviations of PCs
+PC$sdev
+
+# Variance explained by each component
+var_explained <- PC$sdev^2
+var_explained
+
+# Proportion of variance explained
+prop_var <- var_explained / sum(var_explained)
+prop_var
+
+```
+
+```{r}
+# Scree plot
+plot(prop_var, type = "b", xlab = "Principal Component", 
+     ylab = "Proportion of Variance Explained", main = "Scree Plot")
+
+# Cumulative proportion of variance explained
+cum_var <- cumsum(prop_var)
+plot(cum_var, type = "b", xlab = "Principal Component", 
+     ylab = "Cumulative Proportion of Variance Explained", 
+     main = "Cumulative Variance Explained")
+abline(h = 0.8, col = "red", lty = 2)  # 80% threshold
+
+```
+
+```{r}
+# PCA on standardized data
+PC_std <- prcomp(data, scale. = TRUE)
+
+# 1. Matrix of correlations between PCs and original variables
+# For standardized data, loadings are already correlations
+cor_matrix_std <- PC_std$rotation  # Each column ~ correlations with PCs
+cor_matrix_std
+
+# 2. Proportion of variance explained
+var_explained_std <- PC_std$sdev^2
+prop_var_std <- var_explained_std / sum(var_explained_std)
+prop_var_std
+
+# 3. Plot proportion and cumulative variance explained
+# Scree plot
+plot(prop_var_std, type = "b", xlab = "Principal Component", 
+     ylab = "Proportion of Variance Explained", main = "Scree Plot (Standardized Data)")
+
+# Cumulative variance
+cum_var_std <- cumsum(prop_var_std)
+plot(cum_var_std, type = "b", xlab = "Principal Component", 
+     ylab = "Cumulative Proportion of Variance Explained", 
+     main = "Cumulative Variance Explained (Standardized Data)")
+abline(h = 0.8, col = "red", lty = 2)
+
+```
+
+# Part 3: Sparse Clustering
+
+```{r}
+library(sparcl)
+set.seed(2025)
+X <- matrix(rnorm(50*70), ncol=70)
+X[1:25, 1:10] <- X[1:25, 1:10] + 1.5
+X <- scale(X)
+```
+
+```{r}
+set.seed(2025)
+perm.out <- KMeansSparseCluster.permute(X, K = 2, nperms = 10, wbounds = seq(2, 7, by = 0.5))
+# K = 2 clusters (you can adjust), nperms = number of permutations
+# wbounds = range of tuning parameters to test
+
+```
+
+```{r}
+best_wbound <- perm.out$bestw
+best_wbound
+
+```
+
+```{r}
+set.seed(2025)
+sparse.out <- KMeansSparseCluster(X, K = 2, wbounds = best_wbound, nstart = 20)
+# nstart = number of random starts for K-means
+
+```
+
+```{r}
+wbounds <- 2:7
+weight_list <- list()
+
+for (w in wbounds) {
+  set.seed(2025)
+  res <- KMeansSparseCluster(X, K = 2, wbounds = w, nstart = 20)
+  weight_list[[as.character(w)]] <- res[[1]]$ws
+}
+
+```
+
+```{r}
+library(ggplot2)
+library(reshape2)
+
+# wbounds = 2:7
+wbounds <- 2:7
+weight_list <- list()
+
+for (w in wbounds) {
+  set.seed(2025)
+  res <- KMeansSparseCluster(X, K = 2, wbounds = w, nstart = 20)
+  weight_list[[as.character(w)]] <- res[[1]]$ws
+}
+
+# Convert weight_list to a data frame
+weights_df <- do.call(rbind, weight_list)
+weights_df <- as.data.frame(weights_df)
+weights_df$wbound <- wbounds  # explicitly add the tuning parameter column
+
+colnames(weights_df)[1:ncol(X)] <- paste0("Feature_", 1:ncol(X))
+
+# Melt for ggplot
+weights_melt <- melt(weights_df, id.vars = "wbound", variable.name = "Feature", value.name = "Weight")
+
+# Plot
+ggplot(weights_melt, aes(x = wbound, y = Weight, color = Feature)) +
+  geom_line() +
+  theme_minimal() +
+  labs(x = "Tuning Parameter (wbound)", y = "Feature Weight",
+       title = "Sparse K-means Feature Weights vs Tuning Parameter") +
+  theme(legend.position = "none")  # Hide legend if too many features
+
+```
