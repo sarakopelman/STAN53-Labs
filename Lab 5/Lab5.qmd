@@ -1,16 +1,16 @@
 ---
-title: "Computer Lab 4: High Dimensional Data Analysis"
+title: "Computer Lab 5: High Dimensional Data Analysis"
 author: "Sara Kopelman"
 date: today
 date-format: long
 format:
   pdf:
+    pdf-engine: pdflatex
     toc: false
     number-sections: false
     booktabs: true
 header-includes:
   - \usepackage{float}  
-documentclass: article
 ---
 
 # Part 1: Eigenvalues and Eigenvectors
@@ -143,7 +143,7 @@ We see that the first PC has a strong correlation between Royal Dutch Shell and 
 
 ## 2-3)
 
-We now want to analyze how many components capture most of the variability in the data and to evaluate and plot the proportion of variance explained. We do this first by plotting a scree plot, illustrated in @fig-scree, below.
+We now want to analyze how many components capture most of the variability in the data and to evaluate and plot the proportion of variance explained. We do this first by plotting a scree plot, illustrated in @fig-scree, below. We observe that the first PC explains around 50% of the variance, while the second explains around 30%. The third explains just around 10%, while the last two explain less than that.
 
 ```{r}
 #| echo: false
@@ -163,7 +163,12 @@ plot(prop_var, type = "b", xlab = "Principal Component",
 
 ```
 
+Moving on to the proportion of variance explained, @fig-cum, below, displays this in the cumulative. We observe that the first two components alone explain 80% of the variance.
+
 ```{r}
+#| echo: false
+#| label: fig-cum
+#| fig-cap: "Cumulative variance explained for principal components."
 # Cumulative proportion of variance explained
 cum_var <- cumsum(prop_var)
 plot(cum_var, type = "b", xlab = "Principal Component", 
@@ -172,25 +177,48 @@ plot(cum_var, type = "b", xlab = "Principal Component",
 abline(h = 0.8, col = "red", lty = 2)  # 80% threshold
 ```
 
+## 4)
+
+We now move on to attempting to interpreting the principal components, focusing mainly on the first two. Reminding ourselves of the correlations between the PCs and the data from the previously displayed output we can surmise that PC1 represents the combined movement of the energy companies and could thus be regarded as the "energy-component". PC2 then represents variation among banks, and could be regarded as the "bank-component". The rest of the components are not as easy to interpret but we also saw that these first two alone manages to explain the majority of the variation alone.
+
+## 5)
+
+We now perform the same analysis again, but this time on standardized data. The below output displays the new correlation matrix between the PCs and the data. We observe that PC1 now reflects overall variation across all companies, with banks contributing slightly more than energy companies. Unlike the unstandardized PCA, no single sector dominates. On the other hand, now primarily captures the variation in the energy companies. The other PCs are more mixed, but PC3 is mainly correlated with JP Morgan and Wells Fargo. Specifically, PC3 shows large correlations of opposite signs for these banks, indicating that it captures a pattern of variation where they move in opposite directions relative to each other.
+
 ```{r}
 # PCA on standardized data
 PC_std <- prcomp(data, scale. = TRUE)
 
-# 1. Matrix of correlations between PCs and original variables
+
 # For standardized data, loadings are already correlations
 cor_matrix_std <- PC_std$rotation  # Each column ~ correlations with PCs
 cor_matrix_std
 
-# 2. Proportion of variance explained
+# Proportion of variance explained
 var_explained_std <- PC_std$sdev^2
 prop_var_std <- var_explained_std / sum(var_explained_std)
-prop_var_std
 
-# 3. Plot proportion and cumulative variance explained
+
+```
+
+We also once again plot a scree plot, and a cumulative variance plot, illustrated in Figure @fig-scree-std and @fig-cum-std, below. In the scree plot we observe that the first three PCs each capture about as much variance as before. We still explain about 80% of variance with the first two components, and about 90% with the first three.
+
+```{r}
+#| echo: false
+#| label: fig-scree-std
+#| fig-cap: "Scree plot for principal components from standardized data."
+
 # Scree plot
 plot(prop_var_std, type = "b", xlab = "Principal Component", 
      ylab = "Proportion of Variance Explained", main = "Scree Plot (Standardized Data)")
 
+
+```
+
+```{r}
+#| echo: false
+#| label: fig-cum-std
+#| fig-cap: "Cumulative variance explained for principal components from standardized data"
 # Cumulative variance
 cum_var_std <- cumsum(prop_var_std)
 plot(cum_var_std, type = "b", xlab = "Principal Component", 
@@ -199,6 +227,10 @@ plot(cum_var_std, type = "b", xlab = "Principal Component",
 abline(h = 0.8, col = "red", lty = 2)
 
 ```
+
+## 6)
+
+In general, PCA is performed on standardized data to ensure that all variables contribute equally, preventing variables with large scales or high variance from dominating the first components. However, in the context of stocks, variance is a direct measure of volatility, which is inherently meaningful and may even be the focus of the analysis. Therefore, the choice between standardized and non-standardized PCA could depend on the goal: standardized PCA highlights patterns of co-movement across all stocks, while unstandardized PCA would include the risk contribution of the most volatile stocks.
 
 # Part 3: Sparse Clustering
 
