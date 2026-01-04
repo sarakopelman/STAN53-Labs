@@ -10,34 +10,106 @@ format:
     booktabs: true
 header-includes:
   - \usepackage{float}  
+documentclass: article
 ---
 
 # Part 1: Eigenvalues and Eigenvectors
+
+## 1)
+
+We define a new variable $Y=E^\top X$, where $E=(e_1, e_2, e_3)$ is the matrix of eigenvectors of $\Sigma$. Then $Y_i=e_i^\top X$. We then compute the eigenvalues and the eigenvectors of the covariance matrix $\Sigma$
 
 ```{r}
 Sig <- cbind(c(1, -2, 0), c(-2, 5, 0), c(0,0,2))
 eigen_results <- eigen(Sig)
 ```
 
-```{r}
-lhs <- sapply(1:3, function(i) {
-  ei <- eigen_results$vectors[, i]
-  t(ei) %*% Sig %*% ei
-})
+## 2)
 
-rhs <- eigen_results$values
-cbind(lhs = lhs, rhs = rhs)
+We want to verify the following relationships:
+
+$$
+\text{Var}(Y_i)=e_i^\top\Sigma e_i\\
+\text{Cov}(Y_i,Y_k)=e_i^\top\Sigma e_k,\;i\neq k\\
+\sigma_{11}+\dots+\sigma_{pp}=\sum_{i=1}^p\text{Var}(X_i)=\sum_{i=1}^p\text{Var}(Y_i)
+$$
+
+For the first relationship we have
+
+$$
+\text{Var}(Y_i)=\text{Var}(e_i^\top X)=e_i^\top\text{Var}(X)e_i=e_i^\top\Sigma e_i
+$$
+
+and for the second we have
+
+$$
+\text{Cov}(Y_i,Y_k)=\text{Cov}(e_i^\top X,e_k^\top X)=e_i^\top\text{Cov}(X,X)e_k=e_i^\top\text{Var}(X)e_k=e_i^\top\Sigma e_k
+$$
+
+and for the final relationship first have
+
+$$
+\sigma_{11}+\dots+\sigma_{pp}=\sum_{i=1}^p\text{Var}(X_i)
+$$
+
+true by definition as the diagonal entries of $\Sigma$, $\sigma_{ii}$ correspond to $\text{Var}(X_i)$. We now need to verify that this equals $\sum_{i=1}^p\text{Var}(Y_i)$. Let $Y$ have the covariance matrix $\Lambda$. Then $$
+\sum_{i=1}^p\text{Var}(Y_i)=\operatorname{tr}(\Lambda).
+$$
+
+Since $Y=E^\top X$ then
+
+$$
+\Lambda=\operatorname{Var}(E^\top X)=E^\top\Sigma E
+$$
+
+then by the circular property of the trace
+
+$$
+\operatorname{tr}(\Lambda)=\operatorname{tr}(E^\top\Sigma E)=\operatorname{tr}(\Sigma EE^\top)=\operatorname{tr}(\Sigma)=\sum_{i=1}^p\operatorname{Var}(X_i)
+$$
+
+and we have thus verified all three relationships.
+
+## 3)
+
+We now want to verify that:
+
+-   the first eigenvector has unit length
+
+-   the first and second eigenvectors are orthogonal
+
+We begin by extracting the eigenvectors:
+
+```{r}
+# Extract eigenvectors
+E <- eigen_results$vectors
+
+e1 <- E[, 1]
+e2 <- E[, 2]
 ```
 
-```{r}
-ei <- eigen_results$vectors[, 1]
-ek <- eigen_results$vectors[, 2]
+We verify the first statement by computing the length of the first unit vector by taking the norm $\Vert e_1\Vert=\sqrt{e_1^\top e_1}$ and we see that it indeed is equal to 1.
 
-t(ei) %*% Sig %*% ek
+```{r}
+#Check unit length of first eigenvector
+norm_e1 <- sqrt(sum(e1^2))
+norm_e1
 
 ```
+
+We then check the orthogonality by verifying that $e_1^\top e_2=0$ which we also see is the case.
+
+```{r}
+#Check orthogonality between first and second eigenvectors
+orthogonality <- sum(e1 * e2)
+orthogonality
+```
+
+These properties are expected theoretically because the eigenvectors are orthonormal due to the covariance matrix being symmetric. Symmetric matrices admit an orthonormal eigenbasis.
 
 # Part 2: Principal Component Analysis (PCA)
+
+In this part we will perform principal component analysis on the weekly rates of returns for 5 stocks.
 
 ```{r}
 data <- read.table("T8-4.DAT", header = FALSE)  # use header = FALSE if no header 
@@ -46,9 +118,15 @@ colnames(data) <- c("JP_Morgan", "Citibank", "Wells_Fargo", "Royal_Dutch_Shell",
 
 ```
 
+We begin by computing the principal components of the non-standardized data.
+
 ```{r}
 PC <- prcomp (data, scale. = FALSE )
 ```
+
+## 1)
+
+We then determine the matrix of correlations between the principal components and the original variables, displayed in the below output.
 
 ```{r}
 # Standard deviations of original variables
@@ -61,32 +139,37 @@ cor_matrix <- sweep(cor_matrix, 1, sd_X, "/")       # divide each row by origina
 cor_matrix
 ```
 
-```{r}
-# Standard deviations of PCs
-PC$sdev
+We see that the first PC has a strong correlation between Royal Dutch Shell and Exxonmobil, while the second is mainly correlated with JP Morgan, Citibank and Wells Fargo. The other three PCs have smaller correlations overall but the 5th still has a moderately large correlation with Wells Fargo.
 
+## 2-3)
+
+We now want to analyze how many components capture most of the variability in the data and to evaluate and plot the proportion of variance explained. We do this first by plotting a scree plot, illustrated in @fig-scree, below.
+
+```{r}
+#| echo: false
+#| label: fig-scree
+#| fig-cap: "Scree plot for principal components."
 # Variance explained by each component
 var_explained <- PC$sdev^2
-var_explained
+
 
 # Proportion of variance explained
 prop_var <- var_explained / sum(var_explained)
-prop_var
 
-```
-
-```{r}
 # Scree plot
 plot(prop_var, type = "b", xlab = "Principal Component", 
      ylab = "Proportion of Variance Explained", main = "Scree Plot")
 
+
+```
+
+```{r}
 # Cumulative proportion of variance explained
 cum_var <- cumsum(prop_var)
 plot(cum_var, type = "b", xlab = "Principal Component", 
      ylab = "Cumulative Proportion of Variance Explained", 
      main = "Cumulative Variance Explained")
 abline(h = 0.8, col = "red", lty = 2)  # 80% threshold
-
 ```
 
 ```{r}
