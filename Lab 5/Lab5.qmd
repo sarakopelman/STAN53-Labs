@@ -234,7 +234,7 @@ In general, PCA is performed on standardized data to ensure that all variables c
 
 # Part 3: Sparse Clustering
 
-In this section we explore sparse clustering. We begin by simulating the data as detailed in the below output.
+In this section we explore sparse clustering. We begin by simulating the data as detailed in the code below. The design is a two-cluster structure embedded in the first ten features, with the remaining sixty features consisting of random noise. Specifically, the first 25 observations are shifted by a constant in the first ten features, forming the first cluster, while the remaining 25 observations retain standard normal values, forming the second cluster.
 
 ```{r}
 library(sparcl)
@@ -246,29 +246,29 @@ X <- scale(X)
 
 ## 1)
 
-We now turn to selecting the tuning parameter for sparse K-means clustering. Following the explanations in the `sparcl` package documentation, the package provides a permutation-based approach inspired by the gap statistic (Tibshirani et al., 2001), which helps identify the level of sparsity that best separates the clusters.
+We now turn to selecting the tuning parameter $s$, which controls the sparsity, for sparse K-means clustering. According to the explanations in the `sparcl` package documentation, the package provides a permutation-based approach utilizing the gap statistic (Tibshirani et al., 2001), which is used to determine the level of sparsity that best separates the clusters.
 
-Sparse K-means assigns a weight $w_j$ to each feature and seeks clusters $C_1, \dots, C_K$ that maximize the weighted between-cluster sum of squares. Formally, the objective is
+The algorithm for sparse K-means assigns a nonnegative weight $w_j$ to each feature and seeks clusters $C_1, \dots, C_K$ that maximize the weighted between-cluster sum of squares subject to sparsity constraints on the weight vector. For a given tuning parameter $s$, the objective function can be written as
 
 $$
 O(s) = \sum_{j=1}^p w_j \, BCSS_j,
 $$
 
-where $BCSS_j$ measures the contribution of feature $j$ to cluster separation, and $s$ controls the overall sparsity of the weights via an L1 constraint.
+where $BCSS_j$ denotes the between-cluster sum of squares for feature $j$. The parameter $s$ controls sparsity through an $\ell_1$ constraint on the weights, $\Vert w\Vert_1\leq s$ with smaller values of $s$ leading to more zero weights and therefore a stronger feature selection.
 
-To evaluate whether the observed clustering is stronger than expected by chance, the method permutes the values within each feature and recomputes the objective, yielding a set of permuted values $O^*(s)$. The gap statistic is then defined as
+The data is then randomly permuted $B$ times across each feature. This preserves the marginal distribution for each feature but destroys any dependence between features, whuch in turn deletes any potentianal cluster structures present in the data. For each permutation the objective function is maximized given the same parameter $s$ as for the original non-perumted data, giving us $O^*(s)$. The gap ststistic is then defined as the log ratio between $O(s)$ and the average $O^*(s)$ across the $B$ permutations. I.e:
 
 $$
 \text{Gap}(s) = \log(O(s)) - \text{mean}(\log(O^*(s))).
 $$
 
-A larger gap indicates that the clustering is more distinct relative to random noise. The optimal tuning parameter $s$ can be chosen as the one that maximizes $\text{Gap}(s)$, or alternatively as the smallest $s$ for which the gap is within one standard deviation of the maximum:
+A large gap indicates that we have a strong cluster separation relative to random noise (which is what we have for the oermuted data). A smaller gap inidicates that any ceparation is similiar to that of random noise. The optimal tuning parameter $s$ is chosen then chosen as the value that maximizes $\text{Gap}(s)$, or alternatively as the smallest $s$ such that its gap statistic is within one standard deviation of the maximum:
 
 $$
 \text{Gap}(s) \ge \max_s \text{Gap}(s) - \text{sd}(\log(O^*(s))).
 $$
 
-The below code executes the procedure.
+In practice, this procedure is implemented in `sparcl` via the argument `wbounds`, which corresponds to the candidates of the tuning parameter that we consider. The code below executes this tuning-parameter selection procedure.
 
 ```{r}
 set.seed(2025)
@@ -278,7 +278,7 @@ perm.out <- KMeansSparseCluster.permute(X, K = 2, nperms = 10, wbounds = seq(2, 
 
 ```
 
-We see that the best *wbound* was determined to be 4.
+We observe that the best tuning parameter was determined to be 4.
 
 ```{r}
 best_wbound <- perm.out$bestw
@@ -288,7 +288,7 @@ best_wbound
 
 ## 2)
 
-We now perform the actual cluster analysis
+We now perform the actual cluster analysis by the following:
 
 ```{r}
 set.seed(2025)
@@ -297,6 +297,33 @@ sparse.out <- KMeansSparseCluster(X, K = 2, wbounds = best_wbound, nstart = 20)
 
 ```
 
+In order to evaluate the clustering procedure, we examine the feature weights, illustrated in @fig-cl-we below. As expected, the weights assigned to the first ten features are substantially larger than those for the remaining features, indicating that the clustering procedure correctly identified the features driving the cluster separation.
+
+```{r}
+#| echo: false
+#| label: fig-cl-we
+#| fig-cap: "Feature Weights from sparse cluster analysis with tuning parameter 4."
+weights <- sparse.out[[1]]$ws
+
+weights_df <- data.frame(
+  Feature = seq_along(weights),
+  Weight = weights
+)
+
+library(ggplot2)
+ggplot(weights_df, aes(x = Feature, y = Weight)) +
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  labs(
+    title = "Sparse K-means Feature Weights",
+    x = "Feature index",
+    y = "Weight"
+  )
+
+```
+
+We now repeat the procedure for a range of tuning parameter between 2 to 7.
+
 ```{r}
 wbounds <- 2:7
 weight_list <- list()
@@ -309,36 +336,43 @@ for (w in wbounds) {
 
 ```
 
+@fig-cl-seq, below, illustrates the feature weights across tuning parameters, with the true signal features in red and the noise features in grey. For the smallest value of $s=2$, a few of the true signal features receive weights of zero due to the strong sparsity constraint. At $s=3$, all signal features receive nonzero weights while all noise features remain at zero, indicating that this tuning parameter fully separates out the relevant features. For $s=4$ and above, the weights remain constant and increasing $s$ further does not change the allocation. Interestingly, while the weights remain constant, they are not exactly equal among the signal features or among the noise features, even though their theoretical contribution to the cluster assignment is the same (or equally irrelevant for the noise features). Although the weight patterns suggest that $s=3$ would be the sparsest suitable choice, the permutation-based gap statistic selected $s=4$ as the optimal tuning parameter. At this level, a few noise features receive small nonzero weights. This occurs because the gap statistic evaluates the observed weighted BCSS relative to permuted data, and even small contributions from noise features can slightly increase this objective. In this way, the gap statistic balances cluster separation with sparsity, and the selected $s$ may not always correspond to the solution that is closest to the "real" values.
+
 ```{r}
+#| echo: false
+#| label: fig-cl-seq
+#| fig-cap: "Sparse K-means feature weights across tuning parameters"
+
 library(ggplot2)
-library(reshape2)
-
-# wbounds = 2:7
-wbounds <- 2:7
-weight_list <- list()
-
-for (w in wbounds) {
-  set.seed(2025)
-  res <- KMeansSparseCluster(X, K = 2, wbounds = w, nstart = 20)
-  weight_list[[as.character(w)]] <- res[[1]]$ws
-}
+library(dplyr)
+library(tidyr)
 
 # Convert weight_list to a data frame
-weights_df <- do.call(rbind, weight_list)
-weights_df <- as.data.frame(weights_df)
-weights_df$wbound <- wbounds  # explicitly add the tuning parameter column
-
+weights_df <- do.call(rbind, weight_list) %>% as.data.frame()
+weights_df$wbound <- wbounds
 colnames(weights_df)[1:ncol(X)] <- paste0("Feature_", 1:ncol(X))
 
-# Melt for ggplot
-weights_melt <- melt(weights_df, id.vars = "wbound", variable.name = "Feature", value.name = "Weight")
+# Pivot to long format and add feature type
+weights_long <- weights_df %>%
+  pivot_longer(cols = starts_with("Feature_"), names_to = "Feature", values_to = "Weight") %>%
+  mutate(
+    Type = ifelse(as.numeric(gsub("Feature_", "", Feature)) <= 10, "Signal", "Noise")
+  )
 
 # Plot
-ggplot(weights_melt, aes(x = wbound, y = Weight, color = Feature)) +
-  geom_line() +
+ggplot(weights_long, aes(x = wbound, y = Weight, group = Feature, color = Type)) +
+  geom_line(alpha = 0.8) +
+  scale_color_manual(values = c("Signal" = "red", "Noise" = "grey70")) +
   theme_minimal() +
-  labs(x = "Tuning Parameter (wbound)", y = "Feature Weight",
-       title = "Sparse K-means Feature Weights vs Tuning Parameter") +
-  theme(legend.position = "none")  # Hide legend if too many features
+  labs(
+    x = "Tuning Parameter (wbounds)",
+    y = "Feature Weight",
+    title = "Sparse K-means Feature Weights vs Tuning Parameter",
+    color = "Feature Type"
+  )
 
 ```
+
+# Use of AI
+
+AI (ChatGPT) has been utilized in this report primarily to assist with coding, including constructing and formatting plots, generating LaTeX code, and suggesting functions. Additionally, it provided light spelling and grammar checks, as well as suggestions for more clearly conveying results.
