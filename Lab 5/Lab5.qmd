@@ -15,9 +15,18 @@ header-includes:
 
 # Part 1: Eigenvalues and Eigenvectors
 
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+```
+
 ## 1)
 
-We define a new variable $Y=E^\top X$, where $E=(e_1, e_2, e_3)$ is the matrix of eigenvectors of $\Sigma$. Then $Y_i=e_i^\top X$. We then compute the eigenvalues and the eigenvectors of the covariance matrix $\Sigma$
+We define a new variable $Y=E^\top X$, where $E=(e_1, e_2, e_3)$ is the matrix of eigenvectors of $\Sigma$. Then $Y_i=e_i^\top X$. We then compute the eigenvalues and the eigenvectors of the covariance matrix $\Sigma$.
 
 ```{r}
 Sig <- cbind(c(1, -2, 0), c(-2, 5, 0), c(0,0,2))
@@ -142,6 +151,7 @@ We now want to analyze how many components capture most of the variability in th
 #| echo: false
 #| label: fig-scree
 #| fig-cap: "Scree plot for principal components."
+#| fig-pos: "H"
 # Variance explained by each component
 var_explained <- PC$sdev^2
 
@@ -162,6 +172,7 @@ Moving on to the proportion of variance explained, @fig-cum, below, displays thi
 #| echo: false
 #| label: fig-cum
 #| fig-cap: "Cumulative variance explained for principal components."
+#| fig-pos: "H"
 # Cumulative proportion of variance explained
 cum_var <- cumsum(prop_var)
 plot(cum_var, type = "b", xlab = "Principal Component", 
@@ -176,7 +187,7 @@ We now move on to attempting to interpreting the principal components, focusing 
 
 ## 5)
 
-We now perform the same analysis again, but this time on standardized data. The below output displays the new correlation matrix between the PCs and the data. We observe that PC1 now reflects overall variation across all companies, with banks contributing slightly more than energy companies. Unlike the unstandardized PCA, no single sector dominates. On the other hand, now primarily captures the variation in the energy companies. The other PCs are more mixed, but PC3 is mainly correlated with JP Morgan and Wells Fargo. Specifically, PC3 shows large correlations of opposite signs for these banks, indicating that it captures a pattern of variation where they move in opposite directions relative to each other.
+We now perform the same analysis again, but this time on standardized data. The below output displays the new correlation matrix between the PCs and the data. We observe that PC1 now reflects overall variation across all companies, with banks contributing slightly more than energy companies. Unlike the unstandardized PCA, no single sector dominates. On the other hand, PC2 now primarily captures the variation in the energy companies. The other PCs are more mixed, but PC3 is mainly correlated with JP Morgan and Wells Fargo. Specifically, PC3 shows large correlations of opposite signs for these banks, indicating that it captures a pattern of variation where they move in opposite directions relative to each other.
 
 ```{r}
 # PCA on standardized data
@@ -200,6 +211,7 @@ We also once again plot a scree plot, and a cumulative variance plot, illustrate
 #| echo: false
 #| label: fig-scree-std
 #| fig-cap: "Scree plot for principal components from standardized data."
+#| fig-pos: "H"
 
 # Scree plot
 plot(prop_var_std, type = "b", xlab = "Principal Component", 
@@ -212,6 +224,7 @@ plot(prop_var_std, type = "b", xlab = "Principal Component",
 #| echo: false
 #| label: fig-cum-std
 #| fig-cap: "Cumulative variance explained for principal components from standardized data"
+#| fig-pos: "H"
 # Cumulative variance
 cum_var_std <- cumsum(prop_var_std)
 plot(cum_var_std, type = "b", xlab = "Principal Component", 
@@ -230,6 +243,7 @@ In general, PCA is performed on standardized data to ensure that all variables c
 In this section we explore sparse clustering. We begin by simulating the data as detailed in the code below. The design is a two-cluster structure embedded in the first ten features, with the remaining sixty features consisting of random noise. Specifically, the first 25 observations are shifted by a constant in the first ten features, forming the first cluster, while the remaining 25 observations retain standard normal values, forming the second cluster.
 
 ```{r}
+#| warning: false
 library(sparcl)
 set.seed(2025)
 X <- matrix(rnorm(50*70), ncol=70)
@@ -249,13 +263,13 @@ $$
 
 where $BCSS_j$ denotes the between-cluster sum of squares for feature $j$. The parameter $s$ controls sparsity through an $\ell_1$ constraint on the weights, $\Vert w\Vert_1\leq s$ with smaller values of $s$ leading to more zero weights and therefore a stronger feature selection.
 
-The data is then randomly permuted $B$ times across each feature. This preserves the marginal distribution for each feature but destroys any dependence between features, whuch in turn deletes any potentianal cluster structures present in the data. For each permutation the objective function is maximized given the same parameter $s$ as for the original non-perumted data, giving us $O^*(s)$. The gap ststistic is then defined as the log ratio between $O(s)$ and the average $O^*(s)$ across the $B$ permutations. I.e:
+The data is then randomly permuted $B$ times across each feature. This preserves the marginal distribution for each feature but destroys any dependence between features, which in turn deletes any potential cluster structures present in the data. For each permutation the objective function is maximized given the same parameter $s$ as for the original non-permuted data, giving us $O^*(s)$. The gap statistic is then defined as the log ratio between $O(s)$ and the average $O^*(s)$ across the $B$ permutations. I.e:
 
 $$
 \text{Gap}(s) = \log(O(s)) - \text{mean}(\log(O^*(s))).
 $$
 
-A large gap indicates that we have a strong cluster separation relative to random noise (which is what we have for the oermuted data). A smaller gap inidicates that any ceparation is similiar to that of random noise. The optimal tuning parameter $s$ is chosen then chosen as the value that maximizes $\text{Gap}(s)$, or alternatively as the smallest $s$ such that its gap statistic is within one standard deviation of the maximum:
+A large gap indicates that we have a strong cluster separation relative to random noise (which is what we have for the permuted data). A smaller gap indicates that any separation is similar to that resulting from random noise. The optimal tuning parameter $s$ is chosen then chosen as the value that maximizes $\text{Gap}(s)$, or alternatively as the smallest $s$ such that its gap statistic is within one standard deviation of the maximum:
 
 $$
 \text{Gap}(s) \ge \max_s \text{Gap}(s) - \text{sd}(\log(O^*(s))).
@@ -296,6 +310,7 @@ In order to evaluate the clustering procedure, we examine the feature weights, i
 #| echo: false
 #| label: fig-cl-we
 #| fig-cap: "Feature Weights from sparse cluster analysis with tuning parameter 4."
+#| fig-pos: "H"
 weights <- sparse.out[[1]]$ws
 
 weights_df <- data.frame(
@@ -303,7 +318,6 @@ weights_df <- data.frame(
   Weight = weights
 )
 
-library(ggplot2)
 ggplot(weights_df, aes(x = Feature, y = Weight)) +
   geom_bar(stat = "identity") +
   theme_minimal() +
@@ -335,10 +349,9 @@ for (w in wbounds) {
 #| echo: false
 #| label: fig-cl-seq
 #| fig-cap: "Sparse K-means feature weights across tuning parameters"
+#| fig-pos: "H"
+#| warning: false
 
-library(ggplot2)
-library(dplyr)
-library(tidyr)
 
 # Convert weight_list to a data frame
 weights_df <- do.call(rbind, weight_list) %>% as.data.frame()
